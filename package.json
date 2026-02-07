@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.73.0",
-    "@sentry/react": "^10.23.0",
+    "@sentry/react": "^10.38.0",
     "@supabase/supabase-js": "^2.93.3",
     "@types/dompurify": "^3.0.5",
     "@upstash/qstash": "^2.9.0",
