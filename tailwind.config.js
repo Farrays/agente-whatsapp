@@ -30,7 +30,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Roboto', 'sans-serif'],
+        sans: ['Roboto', "'Roboto Fallback'", 'sans-serif'],
       },
       animation: {
         glow: 'glow 3s ease-in-out infinite alternate',

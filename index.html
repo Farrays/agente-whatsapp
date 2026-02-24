@@ -50,13 +50,13 @@
     <!-- Preconnect to critical external resources (reduce DNS + TLS time) -->
     <link rel="preconnect" href="https://www.googletagmanager.com">
     <link rel="preconnect" href="https://vz-c354d67e-cc3.b-cdn.net" crossorigin>
-    <link rel="preconnect" href="https://vz-3d56a778-175.b-cdn.net" crossorigin>
 
     <!-- Self-hosted fonts - preload critical weights with high priority -->
     <link rel="preload" href="/fonts/roboto-v30-latin-regular.woff2" as="font" type="font/woff2" crossorigin fetchpriority="high">
     <link rel="preload" href="/fonts/roboto-v30-latin-700.woff2" as="font" type="font/woff2" crossorigin fetchpriority="high">
     <link rel="preload" href="/fonts/roboto-v30-latin-900.woff2" as="font" type="font/woff2" crossorigin fetchpriority="high">
-    <!-- Hero video poster loads dynamically on homepage only to avoid unused preload warnings -->
+    <!-- Logo preload - LCP element on mobile -->
+    <link rel="preload" href="/images/logo/img/logo-fidc_256.webp" as="image" type="image/webp" fetchpriority="high">
 
     <!-- Critical CSS (above the fold) - INLINED for instant rendering -->
     <style>
@@ -64,9 +64,11 @@
 @font-face{font-family:Roboto;font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/roboto-v30-latin-regular.woff2) format('woff2')}
 @font-face{font-family:Roboto;font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/roboto-v30-latin-700.woff2) format('woff2')}
 @font-face{font-family:Roboto;font-style:normal;font-weight:900;font-display:swap;src:url(/fonts/roboto-v30-latin-900.woff2) format('woff2')}
+/* Fallback font with adjusted metrics to match Roboto — prevents CLS during font swap */
+@font-face{font-family:'Roboto Fallback';src:local('Arial'),local('Helvetica Neue'),local('Helvetica');size-adjust:100.11%;ascent-override:92.49%;descent-override:24.34%}
 /* Critical: Layout, fonts, colors for first paint */
 *,::after,::before{box-sizing:border-box;border:0 solid #e5e7eb}
-html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:Roboto,ui-sans-serif,system-ui,sans-serif}
+html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:Roboto,'Roboto Fallback',ui-sans-serif,system-ui,sans-serif}
 body{margin:0;line-height:inherit;background-color:#000;color:#d4d4d4}
 #root{min-height:100vh;display:flex;flex-direction:column}
 .bg-black{background-color:#000}.text-neutral{color:#d4d4d4}
