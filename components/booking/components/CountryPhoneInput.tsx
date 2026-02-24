@@ -159,19 +159,8 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
     [filteredCountries, handleCountrySelect]
   );
 
-  // Format display value (add formatting as user types)
-  const getDisplayValue = useCallback(() => {
-    if (!value) return '';
-    try {
-      const parsed = parsePhoneNumber(value, selectedCountry.code);
-      if (parsed) {
-        return parsed.formatNational();
-      }
-    } catch {
-      // Return raw value if parsing fails
-    }
-    return value;
-  }, [value, selectedCountry.code]);
+  // Display raw value as typed — formatting only happens on API submission
+  // Live reformatting causes cursor jumping and value changes (UX bug)
 
   // Get full E.164 formatted number for API
   const getE164Number = useCallback((): string => {
@@ -243,7 +232,7 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
           type="tel"
           id={id}
           name={name}
-          value={getDisplayValue()}
+          value={value}
           onChange={handlePhoneChange}
           disabled={disabled}
           placeholder={placeholder ?? t('booking_placeholder_phone_number')}
