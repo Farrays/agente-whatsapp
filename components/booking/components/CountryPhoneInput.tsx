@@ -65,7 +65,19 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
   id = 'phone',
   name = 'phone',
 }) => {
-  const { t, i18n } = useTranslation('booking');
+  const { t, i18n } = useTranslation([
+    'common',
+    'booking',
+    'schedule',
+    'calendar',
+    'home',
+    'classes',
+    'blog',
+    'faq',
+    'about',
+    'contact',
+    'pages',
+  ]);
   const locale = i18n.language;
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -159,8 +171,19 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
     [filteredCountries, handleCountrySelect]
   );
 
-  // Display raw value as typed — formatting only happens on API submission
-  // Live reformatting causes cursor jumping and value changes (UX bug)
+  // Format display value (add formatting as user types)
+  const getDisplayValue = useCallback(() => {
+    if (!value) return '';
+    try {
+      const parsed = parsePhoneNumber(value, selectedCountry.code);
+      if (parsed) {
+        return parsed.formatNational();
+      }
+    } catch {
+      // Return raw value if parsing fails
+    }
+    return value;
+  }, [value, selectedCountry.code]);
 
   // Get full E.164 formatted number for API
   const getE164Number = useCallback((): string => {
@@ -232,7 +255,7 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
           type="tel"
           id={id}
           name={name}
-          value={value}
+          value={getDisplayValue()}
           onChange={handlePhoneChange}
           disabled={disabled}
           placeholder={placeholder ?? t('booking_placeholder_phone_number')}

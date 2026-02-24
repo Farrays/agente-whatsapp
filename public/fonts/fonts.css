@@ -34,9 +34,9 @@
   src: url('./roboto-v30-latin-700.woff2') format('woff2');
 }
 
-/* roboto-900 - latin (optional: no CLS from font swap on hero H1) */
+/* roboto-900 - latin */
 @font-face {
-  font-display: optional;
+  font-display: swap;
   font-family: 'Roboto';
   font-style: normal;
   font-weight: 900;

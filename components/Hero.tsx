@@ -40,8 +40,6 @@ const Hero: React.FC = () => {
         <img
           src={HERO_VIDEO_CONFIG.posterUrl}
           alt={t('heroPosterAlt')}
-          width={1920}
-          height={1080}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
             isVideoPlaying ? 'opacity-0' : 'opacity-100'
           }`}

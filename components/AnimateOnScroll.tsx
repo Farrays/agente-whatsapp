@@ -72,7 +72,7 @@ const AnimateOnScroll: React.FC<AnimateOnScrollProps> = ({
   return (
     <Component
       ref={ref as React.RefObject<never>}
-      className={`transition-opacity duration-700 ease-out ${className} ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`transition-all duration-700 ease-out ${className} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
       style={{ ...style, transitionDelay: `${delay}ms` }}
     >
       {children}

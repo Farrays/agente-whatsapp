@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-
+import { debounce } from '../utils/debounce';
 import { MenuIcon, XMarkIcon as CloseIcon, ChevronDownIcon, UserIcon } from '../lib/icons';
 import MobileNavigation from './header/MobileNavigation';
 import LanguageSelector from './header/LanguageSelector';
@@ -75,36 +75,39 @@ const Header: React.FC = () => {
   const isDropdownOpen = useCallback((key: DropdownKey) => openDropdowns.has(key), [openDropdowns]);
 
   useEffect(() => {
-    let rafId = 0;
     const handleScroll = () => {
-      window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(() => {
-        setIsScrolled(window.scrollY > 10);
-      });
+      setIsScrolled(window.scrollY > 10);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.cancelAnimationFrame(rafId);
-    };
+    const debouncedScroll = debounce(handleScroll, 100);
+
+    window.addEventListener('scroll', debouncedScroll, { passive: true });
+    return () => window.removeEventListener('scroll', debouncedScroll);
   }, []);
 
-  // Close dropdowns when clicking outside (stable ref — no re-registration on state change)
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      setOpenDropdowns(prev => {
-        if (prev.size === 0) return prev;
-        for (const key of prev) {
-          if (target.closest(DROPDOWN_CLASS_MAP[key])) return prev;
+
+      if (openDropdowns.size > 0) {
+        // Check if click is inside any open dropdown
+        let isInsideAnyDropdown = false;
+        openDropdowns.forEach(key => {
+          const dropdownClass = DROPDOWN_CLASS_MAP[key];
+          if (target.closest(dropdownClass)) {
+            isInsideAnyDropdown = true;
+          }
+        });
+
+        if (!isInsideAnyDropdown) {
+          setOpenDropdowns(new Set());
         }
-        return new Set<DropdownKey>();
-      });
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [openDropdowns]);
 
   const getCurrentPath = (): string => {
     const pathParts = location.pathname.split('/').filter(Boolean);
