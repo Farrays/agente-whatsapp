@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { debounce } from '../../../utils/debounce';
 import { parsePhoneNumber, isValidPhoneNumber, CountryCode } from 'libphonenumber-js';
 import { useTranslation } from 'react-i18next';
 import {
@@ -66,19 +65,7 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
   id = 'phone',
   name = 'phone',
 }) => {
-  const { t, i18n } = useTranslation([
-    'common',
-    'booking',
-    'schedule',
-    'calendar',
-    'home',
-    'classes',
-    'blog',
-    'faq',
-    'about',
-    'contact',
-    'pages',
-  ]);
+  const { t, i18n } = useTranslation('booking');
   const locale = i18n.language;
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -134,36 +121,26 @@ export const CountryPhoneInput: React.FC<CountryPhoneInputProps> = ({
     [value, onChange]
   );
 
-  // Debounced phone validation (libphonenumber-js is expensive per keystroke)
-  const debouncedValidate = useMemo(
-    () =>
-      debounce((phone: string, code: CountryCode) => {
-        let isValid = false;
-        try {
-          if (phone.length >= 6) {
-            isValid = isValidPhoneNumber(phone, code);
-          }
-        } catch {
-          isValid = false;
-        }
-        onChange(phone, code, isValid);
-      }, 300),
-    [onChange]
-  );
-
-  // Handle phone input change - update value immediately, validate with debounce
+  // Handle phone input change
   const handlePhoneChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const rawValue = e.target.value;
       // Only allow digits, spaces, and basic phone characters
       const sanitized = rawValue.replace(/[^\d\s\-()]/g, '');
 
-      // Update value immediately for responsive UI
-      onChange(sanitized, selectedCountry.code, false);
-      // Validate with debounce to avoid blocking main thread
-      debouncedValidate(sanitized, selectedCountry.code);
+      // Validate the phone number
+      let isValid = false;
+      try {
+        if (sanitized.length >= 6) {
+          isValid = isValidPhoneNumber(sanitized, selectedCountry.code);
+        }
+      } catch {
+        isValid = false;
+      }
+
+      onChange(sanitized, selectedCountry.code, isValid);
     },
-    [selectedCountry.code, onChange, debouncedValidate]
+    [selectedCountry.code, onChange]
   );
 
   // Handle keyboard navigation in dropdown

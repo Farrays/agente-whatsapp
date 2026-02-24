@@ -288,6 +288,7 @@ const ExitIntentModal: React.FC<ExitIntentModalProps> = ({
           });
 
           // Push specific exit_intent_converted event for GTM triggers
+          // _meta_pixel_handled prevents GTM from firing a duplicate Lead pixel without eventID
           pushToDataLayer({
             event: 'exit_intent_converted',
             event_category: 'Lead',
@@ -297,6 +298,8 @@ const ExitIntentModal: React.FC<ExitIntentModalProps> = ({
             currency: 'EUR',
             discount_percent: discountPercent,
             page_path: window.location.pathname,
+            event_id: data.eventId,
+            _meta_pixel_handled: true,
           });
         } else {
           // Track EXISTING lead (duplicate) - no value, just for analytics
