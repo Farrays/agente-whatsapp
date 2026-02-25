@@ -108,6 +108,22 @@ export function getFullSystemPrompt(
 ): string {
   const basePrompt = loadLauraPrompt();
 
+  // Fecha y hora actual en Madrid (siempre zona horaria de España)
+  const now = new Date();
+  const madridDate = now.toLocaleDateString('es-ES', {
+    timeZone: 'Europe/Madrid',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const madridTime = now.toLocaleTimeString('es-ES', {
+    timeZone: 'Europe/Madrid',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const madridISODate = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+
   // Instrucciones de idioma
   const langInstructions: Record<SupportedLanguage, string> = {
     es: 'Responde SIEMPRE en español de España (vale, genial, mola).',
@@ -117,6 +133,14 @@ export function getFullSystemPrompt(
   };
 
   let fullPrompt = `${basePrompt}
+
+================================================================================
+FECHA Y HORA ACTUAL (Madrid, España)
+================================================================================
+Hoy es ${madridDate}.
+Hora actual: ${madridTime}.
+Fecha ISO: ${madridISODate}.
+IMPORTANTE: Usa SIEMPRE esta fecha y hora como referencia. NO inventes ni asumas otro día u hora.
 
 ================================================================================
 INSTRUCCIONES DE IDIOMA
