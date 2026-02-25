@@ -435,9 +435,7 @@ const DanceClassesPage: React.FC = () => {
       '@type': 'SpeakableSpecification',
       cssSelector: ['#hero-title', '#category-hero p', '#categories-title', '#why-title'],
     },
-    breadcrumb: {
-      '@id': `${baseUrl}/${locale}/clases/baile-barcelona#breadcrumb`,
-    },
+    // BreadcrumbList generated as standalone schema at build-time by prerender.mjs
   };
 
   // Schemas component

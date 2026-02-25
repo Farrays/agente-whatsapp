@@ -264,9 +264,7 @@ const PreciosPage: React.FC = () => {
         '.faq-section [aria-expanded="true"]',
       ],
     },
-    breadcrumb: {
-      '@id': `${pageUrl}#breadcrumb`,
-    },
+    // BreadcrumbList generated as standalone schema at build-time by prerender.mjs
   };
 
   // Service Schema (más apropiado que Product para clases de baile)

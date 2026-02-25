@@ -417,6 +417,15 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ sections, className = '
               itemScope
               itemType="https://schema.org/Review"
             >
+              {/* itemReviewed (required by Google for Review snippets) */}
+              <div
+                itemProp="itemReviewed"
+                itemScope
+                itemType="https://schema.org/LocalBusiness"
+                className="hidden"
+              >
+                <meta itemProp="name" content="Farray's International Dance Center" />
+              </div>
               <div className="flex items-start gap-4">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
