@@ -10,6 +10,20 @@
 
 const BASE_URL = 'https://www.farrayscenter.com';
 
+/**
+ * Strip HTML tags from a string, keeping only plain text.
+ * Used to clean FAQ answers for JSON-LD schema (visual HTML stays in translations).
+ */
+function stripHtml(html) {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, ' ')           // <br> → space
+    .replace(/<\/?(p|div|li)>/gi, ' ')       // block elements → space
+    .replace(/<[^>]+>/g, '')                 // strip remaining tags
+    .replace(/\s{2,}/g, ' ')                 // collapse whitespace
+    .trim();
+}
+
 const REVIEW_STATS = {
   ratingValue: '4.9',
   reviewCount: '509',
@@ -318,10 +332,10 @@ export function generateFAQPageSchema(styleKey, t) {
     if (question && answer) {
       faqs.push({
         '@type': 'Question',
-        name: question,
+        name: stripHtml(question),
         acceptedAnswer: {
           '@type': 'Answer',
-          text: answer,
+          text: stripHtml(answer),
         },
       });
     }
@@ -381,10 +395,10 @@ export function generateFlexibleFAQSchema(prefix, t) {
     if (question && answer) {
       faqs.push({
         '@type': 'Question',
-        name: question,
+        name: stripHtml(question),
         acceptedAnswer: {
           '@type': 'Answer',
-          text: answer,
+          text: stripHtml(answer),
         },
       });
     }
@@ -692,10 +706,10 @@ export function generateBlogFAQSchema(articleData, blogT) {
     if (question && answer) {
       faqs.push({
         '@type': 'Question',
-        name: question,
+        name: stripHtml(question),
         acceptedAnswer: {
           '@type': 'Answer',
-          text: answer,
+          text: stripHtml(answer),
         },
       });
     }
@@ -739,13 +753,12 @@ export function generateAllJsonLd({ routePath, lang, page, meta, translations, b
   // 2. Class page schemas (only if page has a style key mapping)
   const styleKey = styleKeyMap[page];
   if (styleKey) {
-    const pageUrl = `${BASE_URL}/${routePath}`;
-
     const faqSchema = generateFAQPageSchema(styleKey, t);
     if (faqSchema) schemas.push(faqSchema);
 
-    const courseSchema = generateCourseSchema(styleKey, t, pageUrl, lang);
-    if (courseSchema) schemas.push(courseSchema);
+    // Note: Course schema is NOT generated here — React's CourseSchemaEnterprise
+    // (with hasCourseInstance + schedules) is the authoritative Course schema.
+    // Generating a basic Course here would create a duplicate entity.
   }
 
   // 3. Blog article schemas (Article + FAQPage)
