@@ -987,6 +987,7 @@ async function executeManageTrialBooking(
     rescheduledFrom?: string | null;
     momenceBookingId?: number | null;
     calendarEventId?: string | null;
+    sessionId?: number | null;
   };
 
   // CHECK STATUS
@@ -1020,17 +1021,76 @@ async function executeManageTrialBooking(
     }
 
     try {
-      // Cancel in Momence if exists
+      const client = getMomenceClient(context.redis);
+      let momenceCancelled = false;
+
+      // 1. Cancel in Momence — try bookingId first, then fallback to member search
       if (booking.momenceBookingId) {
-        const client = getMomenceClient(context.redis);
-        await client.cancelBooking(booking.momenceBookingId, {
-          refund: true,
-          disableNotifications: true,
-          isLateCancellation: false,
-        });
+        try {
+          await client.cancelBooking(booking.momenceBookingId, {
+            refund: true,
+            disableNotifications: true,
+            isLateCancellation: false,
+          });
+          momenceCancelled = true;
+          console.log(
+            `[manage_trial_booking] Momence booking ${booking.momenceBookingId} cancelled`
+          );
+        } catch (momErr) {
+          console.error(
+            `[manage_trial_booking] Failed to cancel Momence booking ${booking.momenceBookingId}:`,
+            momErr
+          );
+        }
       }
 
-      // Update Redis
+      // Fallback: if no bookingId or cancel failed, try to find via member search + session
+      if (!momenceCancelled && booking.email) {
+        try {
+          const members = await client.searchMembers({
+            page: 0,
+            pageSize: 5,
+            query: booking.email.toLowerCase().trim(),
+          });
+          const member = members.payload?.find(
+            (m: { email?: string }) => m.email?.toLowerCase() === booking.email.toLowerCase().trim()
+          );
+          if (member) {
+            const bookings = await client.getMemberSessionBookings(member.id, {
+              page: 0,
+              pageSize: 20,
+              includeCancelled: false,
+            });
+            // Find booking matching our session or class name
+            const match = bookings.payload?.find(
+              (b: { session?: { id: number; name: string } }) =>
+                (booking.sessionId && b.session?.id === Number(booking.sessionId)) ||
+                b.session?.name?.toLowerCase().includes(booking.className.toLowerCase())
+            );
+            if (match) {
+              await client.cancelBooking(match.id, {
+                refund: true,
+                disableNotifications: true,
+                isLateCancellation: false,
+              });
+              momenceCancelled = true;
+              console.log(
+                `[manage_trial_booking] Momence booking ${match.id} cancelled (found via member search)`
+              );
+            }
+          }
+        } catch (fallbackErr) {
+          console.error('[manage_trial_booking] Momence fallback cancel failed:', fallbackErr);
+        }
+      }
+
+      if (!momenceCancelled) {
+        console.warn(
+          `[manage_trial_booking] ⚠️ Could NOT cancel in Momence for ${booking.email} — manual check needed`
+        );
+      }
+
+      // 2. Update booking status in Redis
       booking.status = 'cancelled';
       booking.attendance = 'not_attending';
 
@@ -1051,12 +1111,34 @@ async function executeManageTrialBooking(
         JSON.stringify(booking)
       );
 
-      // ALWAYS clear dedup so user can rebook (super admin mode)
+      // 3. Clean ALL Redis keys (dedup + phone mappings + reminders)
       const email = booking.email.toLowerCase().trim();
-      await context.redis.del(`booking:${email}`);
-      console.log(`[manage_trial_booking] Dedup cleared for ${email} (isOnTime=${isOnTime})`);
+      const bookingPhone = booking.phone?.replace(/[\s\-+()]/g, '') || '';
 
-      // Record audit event for analytics
+      // Delete dedup by email
+      await context.redis.del(`booking:${email}`);
+
+      // Delete phone→eventId mapping
+      if (bookingPhone) {
+        await context.redis.del(`phone:${bookingPhone}`);
+        await context.redis.del(`phone_email:${bookingPhone}`);
+        console.log(`[manage_trial_booking] Phone keys cleared for ${bookingPhone}`);
+      }
+
+      // Remove from reminders set
+      if (booking.classDate && /^\d{4}-\d{2}-\d{2}$/.test(booking.classDate)) {
+        try {
+          await context.redis.srem(`reminders:${booking.classDate}`, eventId);
+        } catch {
+          /* non-blocking */
+        }
+      }
+
+      console.log(
+        `[manage_trial_booking] Full cleanup done: email=${email}, phone=${bookingPhone}, isOnTime=${isOnTime}, momence=${momenceCancelled}`
+      );
+
+      // 4. Record audit event for analytics
       try {
         const { recordAuditEvent } = await import('../audit.js');
         await recordAuditEvent(context.redis as unknown as import('ioredis').default, {
@@ -1070,7 +1152,7 @@ async function executeManageTrialBooking(
           metadata: {
             type: 'trial_cancellation',
             isOnTime,
-            momenceCancelled: !!booking.momenceBookingId,
+            momenceCancelled,
             cancelledVia: 'laura_manage_trial_booking',
           },
         });
@@ -1078,7 +1160,7 @@ async function executeManageTrialBooking(
         /* non-blocking */
       }
 
-      // Update Google Calendar
+      // 5. Update Google Calendar
       if (booking.calendarEventId) {
         try {
           const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
@@ -1128,6 +1210,7 @@ async function executeManageTrialBooking(
           ? `Reserva cancelada correctamente. Puedes volver a reservar cuando quieras.`
           : `Reserva cancelada. Nota: la cancelación fue con menos de 2 horas de antelación.`,
         canRebook: isOnTime,
+        momenceCancelled,
       });
     } catch (error) {
       return JSON.stringify({
