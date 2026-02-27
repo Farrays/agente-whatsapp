@@ -25,6 +25,57 @@ import { sendTypingIndicator, sendTextMessage as sendWhatsAppText } from '../wha
 import { classifyQuery } from './query-classifier.js';
 import { generateSimpleResponse } from './openai-client.js';
 
+// ============================================================================
+// URL SANITIZER — catches hallucinated URLs before they reach the user
+// ============================================================================
+
+/** URL patterns that Laura is allowed to share (from tools or hardcoded in prompt) */
+const VALID_URL_PATTERNS: RegExp[] = [
+  // Tool-generated: class URLs from Momence
+  /^https?:\/\/momence\.com\//i,
+  // Tool-generated: booking widget
+  /^https?:\/\/(www\.)?farrayscenter\.com\/[a-z]{2}\/reservas/i,
+  // Hardcoded in prompt/system: known website pages
+  /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/(hazte-socio|horarios|horarios-clases-baile-barcelona|horarios-precios|precios-clases-baile-barcelona|calendario|contacto|mi-reserva)/i,
+  // Images/assets
+  /^https?:\/\/(www\.)?farrayscenter\.com\/images\//i,
+];
+
+/**
+ * Detects and removes fabricated URLs from Laura's response.
+ * Any URL containing "farrayscenter.com" or "momence.com" that doesn't match
+ * known valid patterns is replaced with the general schedule page.
+ */
+function sanitizeUrls(text: string, lang: string): string {
+  // Match URLs (with or without protocol)
+  const urlRegex =
+    /(?:https?:\/\/)?(?:www\.)?(?:farrayscenter\.com|momence\.com|app\.momence\.com)[^\s,)}\]"'<>]*/gi;
+
+  let sanitized = text;
+  let hadFabricatedUrls = false;
+
+  sanitized = sanitized.replace(urlRegex, matchedUrl => {
+    // Normalize: add https:// if missing for pattern matching
+    const normalized = matchedUrl.startsWith('http') ? matchedUrl : `https://${matchedUrl}`;
+
+    const isValid = VALID_URL_PATTERNS.some(pattern => pattern.test(normalized));
+    if (isValid) {
+      return matchedUrl; // Keep valid URL as-is
+    }
+
+    // FABRICATED URL detected — replace with general page
+    hadFabricatedUrls = true;
+    console.warn(`[sanitize-urls] FABRICATED URL removed: "${matchedUrl}"`);
+    return `www.farrayscenter.com/${lang}/horarios-clases-baile-barcelona`;
+  });
+
+  if (hadFabricatedUrls) {
+    console.warn('[sanitize-urls] Response contained fabricated URLs — sanitized before sending');
+  }
+
+  return sanitized;
+}
+
 // Tipos
 interface AgentInput {
   phone: string;
@@ -463,7 +514,10 @@ export async function processSimpleMessage(
     const textBlocks = currentResponse.content.filter(
       (b): b is Anthropic.TextBlock => b.type === 'text'
     );
-    const assistantMessage = textBlocks.map(b => b.text).join('');
+    const rawMessage = textBlocks.map(b => b.text).join('');
+
+    // Sanitize: remove any fabricated URLs before sending to user
+    const assistantMessage = sanitizeUrls(rawMessage, language);
 
     return handleResponse({
       assistantMessage,

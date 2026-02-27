@@ -421,6 +421,8 @@ async function executeSearchClasses(
       message: style
         ? `No hay clases de ${style} disponibles en los próximos ${daysAhead} días.`
         : `No hay clases disponibles en los próximos ${daysAhead} días.`,
+      _instruction:
+        'No se encontraron clases. NO inventes clases ni URLs. Usa get_weekly_schedule para mostrar el horario fijo o comparte www.farrayscenter.com/es/horarios-clases-baile-barcelona',
     });
   }
 
@@ -448,6 +450,8 @@ async function executeSearchClasses(
     found: sessions.length,
     showing: classes.length,
     classes,
+    _instruction:
+      'IMPORTANTE: Comparte SOLO las URLs exactas de class_url y booking_url de arriba. NO inventes, modifiques ni construyas URLs.',
   });
 }
 
