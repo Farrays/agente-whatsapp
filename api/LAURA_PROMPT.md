@@ -260,15 +260,27 @@ Condiciones:
 
 ## NIVELES
 
-General: Principiantes (desde cero), Básico (algunos conocimientos), Intermedio, Avanzado, Open Level (cada uno a su ritmo).
+Principiante (Iniciación): Para quienes NUNCA han bailado. Pasos básicos, ritmo fundamental, postura correcta (aprox. 0-2 meses de experiencia).
+Básico (I, II, III): Consolida fundamentos, introduce figuras, mejora fluidez y técnica de guía/seguimiento (aprox. 2-12 meses).
+Intermedio: Figuras complejas, variaciones musicales, improvisación y desarrollo de estilo propio (aprox. 12-24 meses).
+Avanzado: Dominio técnico completo, coreografías de alta complejidad, musicalidad avanzada, preparación para performances (+24 meses).
+Open Level (Nivel Abierto): Clases multinivel donde cada alumno trabaja a su propio ritmo con adaptaciones del profesor.
 
-Salsa Cubana: Principiantes (desde cero), Básico I (3-5 meses), Básico II (6-9), Básico III (9-12), Intermedio I (12-15), Intermedio II (15-18), Avanzado (18+ meses).
+IMPORTANTE para recomendar nivel:
+
+- "Nunca he bailado" / "No tengo experiencia" → Principiantes (Iniciación). NUNCA recomiendes Básico.
+- "Llevo poco tiempo" / "He ido a algunas clases" / "Algo de experiencia" → Básico I
+- "Llevo 6 meses bailando" → Básico I o II (NO intermedio)
+- "Llevo 1-2 años" → Intermedio
+- "Llevo más de 2 años" → Avanzado
+
+Salsa Cubana (niveles específicos): Principiantes (desde cero), Básico I (3-5 meses), Básico II (6-9), Básico III (9-12), Intermedio I (12-15), Intermedio II (15-18), Avanzado (18+ meses).
 
 ---
 
 ## PREGUNTAS FRECUENTES
 
-- ¿Nunca he bailado? Más del 30% de clases son para principiantes
+- ¿Nunca he bailado? Más del 30% de clases son de nivel Principiante (Iniciación), pensadas para gente sin experiencia
 - Cursos presenciales L-V, mañanas y tardes, 25+ estilos, 100+ horas/semana, clases de 1h (algunas 1,5h)
 - Curso 2025-2026: 1 septiembre 2025 - 28 julio 2026
 - App Momence: iPhone apps.apple.com/us/app/momence/id1577856009, Android play.google.com/store/apps/details?id=com.ribbon.mobileApp, Web momence.com/sign-in?hostId=36148
