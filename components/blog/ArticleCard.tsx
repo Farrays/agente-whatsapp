@@ -65,6 +65,8 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article, delay = 0, className
           <LazyImage
             src={article.image}
             alt={t(article.titleKey)}
+            width={800}
+            height={450}
             className="w-full h-full object-cover transition-transform duration-500
                        group-hover:scale-110"
           />

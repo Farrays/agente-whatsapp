@@ -526,6 +526,8 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ sections, className = '
                         <img
                           src={ref.image}
                           alt={ref.publisher || ''}
+                          width={800}
+                          height={400}
                           className="w-full h-full object-cover opacity-90 group-hover:opacity-100
                                      group-hover:scale-105 transition-all duration-500"
                         />
