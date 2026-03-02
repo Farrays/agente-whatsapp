@@ -1024,7 +1024,7 @@ async function executeManageTrialBooking(
       const client = getMomenceClient(context.redis);
       let momenceCancelled = false;
 
-      // 1. Cancel in Momence — try bookingId first, then fallback to member search
+      // 1. Cancel in Momence — try bookingId first
       if (booking.momenceBookingId) {
         try {
           await client.cancelBooking(booking.momenceBookingId, {
@@ -1034,7 +1034,7 @@ async function executeManageTrialBooking(
           });
           momenceCancelled = true;
           console.log(
-            `[manage_trial_booking] Momence booking ${booking.momenceBookingId} cancelled`
+            `[manage_trial_booking] Momence booking ${booking.momenceBookingId} cancelled with refund`
           );
         } catch (momErr) {
           console.error(
@@ -1044,7 +1044,8 @@ async function executeManageTrialBooking(
         }
       }
 
-      // Fallback: if no bookingId or cancel failed, try to find via member search + session
+      // 2. Fallback: find the correct session-booking via member search + session bookings list
+      // This works even if momenceBookingId was wrong or null
       if (!momenceCancelled && booking.email) {
         try {
           const members = await client.searchMembers({
@@ -1056,16 +1057,32 @@ async function executeManageTrialBooking(
             (m: { email?: string }) => m.email?.toLowerCase() === booking.email.toLowerCase().trim()
           );
           if (member) {
-            const bookings = await client.getMemberSessionBookings(member.id, {
+            const memberBookings = await client.getMemberSessionBookings(member.id, {
               page: 0,
               pageSize: 20,
               includeCancelled: false,
             });
-            // Find booking matching our session or class name
-            const match = bookings.payload?.find(
-              (b: { session?: { id: number; name: string } }) =>
-                (booking.sessionId && b.session?.id === Number(booking.sessionId)) ||
-                b.session?.name?.toLowerCase().includes(booking.className.toLowerCase())
+            // Find booking matching our session ID, class name, or class date
+            const match = memberBookings.payload?.find(
+              (b: { session?: { id: number; name: string; startDate?: string } }) => {
+                // Match by session ID (most reliable)
+                if (booking.sessionId && b.session?.id === Number(booking.sessionId)) return true;
+                // Match by class name (fuzzy)
+                if (
+                  b.session?.name &&
+                  booking.className &&
+                  b.session.name.toLowerCase().includes(booking.className.toLowerCase())
+                )
+                  return true;
+                // Match by date if class name is generic
+                if (
+                  booking.classDate &&
+                  b.session?.startDate &&
+                  b.session.startDate.startsWith(booking.classDate)
+                )
+                  return true;
+                return false;
+              }
             );
             if (match) {
               await client.cancelBooking(match.id, {
@@ -1074,33 +1091,31 @@ async function executeManageTrialBooking(
                 isLateCancellation: false,
               });
               momenceCancelled = true;
+              // Update stored momenceBookingId with the correct one for future reference
+              booking.momenceBookingId = match.id;
               console.log(
-                `[manage_trial_booking] Momence booking ${match.id} cancelled (found via member search)`
+                `[manage_trial_booking] Momence booking ${match.id} cancelled via member search (refund: true)`
+              );
+            } else {
+              console.warn(
+                `[manage_trial_booking] Member ${member.id} found but no matching booking. ` +
+                  `sessionId=${booking.sessionId}, className=${booking.className}, classDate=${booking.classDate}`
               );
             }
+          } else {
+            console.warn(
+              `[manage_trial_booking] No member found in Momence for email: ${booking.email}`
+            );
           }
         } catch (fallbackErr) {
           console.error('[manage_trial_booking] Momence fallback cancel failed:', fallbackErr);
         }
       }
 
-      if (!momenceCancelled && booking.momenceBookingId) {
-        // Booking exists in Momence but cancellation failed — do NOT mark as cancelled
-        console.error(
-          `[manage_trial_booking] CRITICAL: Momence booking ${booking.momenceBookingId} NOT cancelled for ${booking.email} — returning failure`
-        );
-        return JSON.stringify({
-          success: false,
-          error:
-            'No se pudo cancelar la reserva automáticamente en el sistema de reservas. Por favor, contacta con el centro en info@farrayscenter.com o al +34 622 247 085 para completar la cancelación.',
-          momenceCancelled: false,
-        });
-      }
-
       if (!momenceCancelled) {
-        // No momenceBookingId — booking only in our local system (Customer Leads fallback)
         console.warn(
-          `[manage_trial_booking] No Momence booking found for ${booking.email} — cancelling in local system only`
+          `[manage_trial_booking] ⚠️ Could NOT cancel in Momence for ${booking.email} — ` +
+            `momenceBookingId=${booking.momenceBookingId}, sessionId=${booking.sessionId}`
         );
       }
 
@@ -1218,14 +1233,26 @@ async function executeManageTrialBooking(
         }
       }
 
-      return JSON.stringify({
-        success: true,
-        message: isOnTime
-          ? `Reserva cancelada correctamente. Puedes volver a reservar cuando quieras.`
-          : `Reserva cancelada. Nota: la cancelación fue con menos de 2 horas de antelación.`,
-        canRebook: isOnTime,
-        momenceCancelled,
-      });
+      if (momenceCancelled) {
+        return JSON.stringify({
+          success: true,
+          message: isOnTime
+            ? `Reserva cancelada correctamente en Momence (crédito devuelto). Puedes volver a reservar cuando quieras.`
+            : `Reserva cancelada en Momence. Nota: la cancelación fue con menos de 2 horas de antelación.`,
+          canRebook: isOnTime,
+          momenceCancelled: true,
+        });
+      } else {
+        // Momence cancel failed but Redis is cleaned — user needs manual help
+        return JSON.stringify({
+          success: false,
+          message:
+            'No se pudo cancelar automáticamente en el sistema de reservas. El equipo del centro debe cancelarla manualmente.',
+          action_needed:
+            'Escribe a info@farrayscenter.com o llama al +34 622 247 085 para confirmar la cancelación.',
+          momenceCancelled: false,
+        });
+      }
     } catch (error) {
       return JSON.stringify({
         error: `No se pudo cancelar: ${error instanceof Error ? error.message : 'Error desconocido'}`,

@@ -1313,7 +1313,7 @@ async function createMomenceBooking(
     const bookingData = await bookingResponse.json();
     console.warn('[Momence Booking] Full response:', JSON.stringify(bookingData));
 
-    const bookingId = bookingData.sessionBookingId || bookingData.payload?.id || bookingData.id;
+    let bookingId = bookingData.sessionBookingId || bookingData.payload?.id || bookingData.id;
 
     // Validate we actually got a booking ID
     if (!bookingId) {
@@ -1354,9 +1354,18 @@ async function createMomenceBooking(
 
         if (ourBooking) {
           bookingVerified = true;
+          // Use the verified session booking ID (ourBooking.id) — this is the correct ID
+          // for cancellation via DELETE /api/v2/host/session-bookings/{id}
+          const verifiedId = (ourBooking as { id?: number }).id;
+          if (verifiedId && verifiedId !== bookingId) {
+            console.warn(
+              `[Momence Booking] ⚠️ Correcting bookingId: ${bookingId} → ${verifiedId} (from verification)`
+            );
+            bookingId = verifiedId;
+          }
           console.warn(
             '[Momence Booking] ✅ Booking VERIFIED in Momence:',
-            ourBooking.id || bookingId
+            verifiedId || bookingId
           );
         } else {
           console.error(
