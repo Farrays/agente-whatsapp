@@ -462,20 +462,30 @@ Servicios adicionales (alquiler salas, eventos, bodas, team building): contactar
       'download',
       'descargar',
     ],
-    tokenEstimate: 150,
-    content: `ENLACES PRINCIPALES (siempre con /es/ para espanol)
+    tokenEstimate: 250,
+    content: `ENLACES Y URLS
 
+IMPORTANTE: Para reservar clases, SIEMPRE usa los enlaces devueltos por las herramientas (booking_url, class_url, purchase_url). NUNCA construyas URLs de Momence manualmente.
+
+ENLACES DINAMICOS DE HERRAMIENTAS (prioridad):
+- search_upcoming_classes devuelve: booking_url (prueba gratis) y class_url (pago) para CADA clase
+- get_membership_options devuelve: purchase_url para cada membresia/bono
+- Estos son enlaces directos a Momence que abren la accion correspondiente
+
+PAGINAS INFORMATIVAS DE LA WEB (usar solo como referencia o fallback):
 Precios: www.farrayscenter.com/es/precios-clases-baile-barcelona
 Horarios y reservas: www.farrayscenter.com/es/horarios-clases-baile-barcelona
 Calendario: www.farrayscenter.com/es/calendario
 Hazte socio (alta): www.farrayscenter.com/es/hazte-socio
 Contacto: www.farrayscenter.com/es/contacto
 Profesores: www.farrayscenter.com/es/profesores-baile-barcelona
-Clase de prueba: www.farrayscenter.com/es/reservas
+Clase de prueba (widget reserva): www.farrayscenter.com/es/reservas
 Alquiler salas: www.farrayscenter.com/es/alquiler-salas-baile-barcelona
 Team building: www.farrayscenter.com/es/team-building-barcelona
 Tarjetas regalo: www.farrayscenter.com/es/regala-baile
 FAQs: www.farrayscenter.com/es/preguntas-frecuentes
-Como llegar: www.farrayscenter.com/es/como-llegar-escuela-baile-barcelona`,
+Como llegar: www.farrayscenter.com/es/como-llegar-escuela-baile-barcelona
+
+App Momence: iPhone apps.apple.com/us/app/momence/id1577856009, Android play.google.com/store/apps/details?id=com.ribbon.mobileApp`,
   },
 ];

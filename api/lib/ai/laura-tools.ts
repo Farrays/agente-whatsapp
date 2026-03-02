@@ -1084,9 +1084,23 @@ async function executeManageTrialBooking(
         }
       }
 
+      if (!momenceCancelled && booking.momenceBookingId) {
+        // Booking exists in Momence but cancellation failed — do NOT mark as cancelled
+        console.error(
+          `[manage_trial_booking] CRITICAL: Momence booking ${booking.momenceBookingId} NOT cancelled for ${booking.email} — returning failure`
+        );
+        return JSON.stringify({
+          success: false,
+          error:
+            'No se pudo cancelar la reserva automáticamente en el sistema de reservas. Por favor, contacta con el centro en info@farrayscenter.com o al +34 622 247 085 para completar la cancelación.',
+          momenceCancelled: false,
+        });
+      }
+
       if (!momenceCancelled) {
+        // No momenceBookingId — booking only in our local system (Customer Leads fallback)
         console.warn(
-          `[manage_trial_booking] ⚠️ Could NOT cancel in Momence for ${booking.email} — manual check needed`
+          `[manage_trial_booking] No Momence booking found for ${booking.email} — cancelling in local system only`
         );
       }
 

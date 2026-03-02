@@ -204,7 +204,7 @@ async function cancelMomenceBooking(
         method: 'DELETE',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          refund: false,
+          refund: true,
           disableNotifications: true,
           isLateCancellation: false,
         }),
