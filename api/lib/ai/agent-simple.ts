@@ -24,6 +24,9 @@ import { markdownToWhatsApp, splitIntoBubbles } from './whatsapp-formatter.js';
 import { sendTypingIndicator, sendTextMessage as sendWhatsAppText } from '../whatsapp.js';
 import { classifyQuery } from './query-classifier.js';
 import { generateSimpleResponse } from './openai-client.js';
+import { validatePrices } from './response-validator.js';
+import { logGaps } from './knowledge-gap.js';
+import { retrieveRelevantChunks } from './rag/index.js';
 
 // ============================================================================
 // URL SANITIZER — catches hallucinated URLs before they reach the user
@@ -194,8 +197,22 @@ async function handleResponse(params: {
     iterations,
   } = params;
 
+  // Post-validation: catch hallucinated URLs and prices before sending
+  const afterUrlSanitization = sanitizeUrls(assistantMessage, language);
+  const validatedMessage = validatePrices(afterUrlSanitization, language);
+
+  // Knowledge gap detection (async, non-blocking)
+  logGaps(redis, {
+    userMessage: text,
+    rawResponse: assistantMessage,
+    afterUrlSanitization,
+    afterPriceValidation: validatedMessage,
+    language,
+    phone,
+  }).catch(err => console.error('[knowledge-gap] Error:', err));
+
   // Format for WhatsApp
-  const formattedForWhatsApp = markdownToWhatsApp(assistantMessage);
+  const formattedForWhatsApp = markdownToWhatsApp(validatedMessage);
 
   console.log(
     `[agent-simple] [${model}] Response in ${Date.now() - startTime}ms (${iterations} tool calls): "${assistantMessage.slice(0, 50)}..."`
@@ -389,8 +406,27 @@ export async function processSimpleMessage(
     console.error('[agent-simple] Trial lookup error (non-blocking):', trialError);
   }
 
-  // 3. Cargar system prompt desde LAURA_PROMPT.md (con contexto de miembro si existe)
-  const systemPrompt = getFullSystemPrompt(language, memberContext, trialContext);
+  // 3. RAG retrieval (if enabled) — retrieve only relevant knowledge chunks
+  let ragChunks: { id: string; content: string }[] | undefined;
+  if (process.env['ENABLE_RAG'] === 'true') {
+    try {
+      const ragResult = await retrieveRelevantChunks(redis, text);
+      if (!ragResult.fallback) {
+        ragChunks = ragResult.chunks;
+      }
+      console.log(
+        `[agent-simple] RAG: ${ragResult.chunks.length} chunks in ${ragResult.latencyMs}ms` +
+          (ragResult.chunks.length > 0
+            ? ` [${ragResult.chunks.map(c => c.id).join(', ')}]`
+            : ' (fallback)')
+      );
+    } catch (ragError) {
+      console.error('[agent-simple] RAG error (falling back to full prompt):', ragError);
+    }
+  }
+
+  // 3b. Cargar system prompt (con RAG chunks o prompt completo como fallback)
+  const systemPrompt = getFullSystemPrompt(language, memberContext, trialContext, ragChunks);
 
   // 4. Obtener historial de conversación
   const history = await getConversationHistory(redis, phone);
@@ -460,6 +496,7 @@ export async function processSimpleMessage(
     let currentResponse = await createMessageWithRetry({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 500,
+      temperature: 0.2,
       system: systemPrompt,
       messages,
       ...(useTools ? { tools: toolSet } : {}),
@@ -504,6 +541,7 @@ export async function processSimpleMessage(
       currentResponse = await createMessageWithRetry({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 500,
+        temperature: 0.2,
         system: systemPrompt,
         messages,
         ...(useTools ? { tools: toolSet } : {}),
@@ -516,8 +554,7 @@ export async function processSimpleMessage(
     );
     const rawMessage = textBlocks.map(b => b.text).join('');
 
-    // Sanitize: remove any fabricated URLs before sending to user
-    const assistantMessage = sanitizeUrls(rawMessage, language);
+    const assistantMessage = rawMessage;
 
     return handleResponse({
       assistantMessage,

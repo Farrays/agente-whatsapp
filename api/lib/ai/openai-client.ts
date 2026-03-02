@@ -13,7 +13,7 @@ import OpenAI from 'openai';
 // Singleton client
 let openaiClient: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   if (!openaiClient) {
     openaiClient = new OpenAI(); // uses OPENAI_API_KEY from env
   }
@@ -35,6 +35,7 @@ export async function generateSimpleResponse(params: {
   const response = await client.chat.completions.create({
     model: 'gpt-4.1-mini',
     max_tokens: 400,
+    temperature: 0.2,
     messages: [{ role: 'system', content: params.systemPrompt }, ...params.messages],
   });
 
