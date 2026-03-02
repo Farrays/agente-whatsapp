@@ -206,16 +206,16 @@ const corsHeaders = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.status(200).json({});
-    return;
-  }
-
-  // Set CORS headers
+  // Set CORS headers for ALL responses (including preflight)
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
   });
+
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
