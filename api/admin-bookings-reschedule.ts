@@ -507,6 +507,16 @@ export async function rescheduleBooking(
     await redis.sadd(`reminders:${newCalendarDateStr}`, newEventId);
   }
 
+  // Remove old eventId from old date's reminders set
+  if (booking.classDate && /^\d{4}-\d{2}-\d{2}$/.test(booking.classDate)) {
+    try {
+      await redis.srem(`reminders:${booking.classDate}`, eventId);
+      console.log(`[reschedule] Removed old eventId from reminders:${booking.classDate}`);
+    } catch (e) {
+      console.warn(`[reschedule] Failed to remove old eventId from reminders:`, e);
+    }
+  }
+
   // Add phone index for new booking
   const normalizedPhone = booking.phone.replace(/[\s\-+()]/g, '');
   if (normalizedPhone) {

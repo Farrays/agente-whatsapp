@@ -167,7 +167,7 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-+()]/g, '');
 }
 
-function toAdminBooking(details: BookingDetails): AdminBooking {
+function toAdminBooking(details: BookingDetails, fallbackDate?: string): AdminBooking {
   const phone = normalizePhone(details.phone);
   return {
     eventId: details.eventId,
@@ -176,7 +176,7 @@ function toAdminBooking(details: BookingDetails): AdminBooking {
     email: details.email,
     phone: details.phone,
     className: details.className,
-    classDate: details.classDate,
+    classDate: details.classDate || fallbackDate || '',
     classTime: details.classTime,
     classEndTime: calculateEndTime(details.classTime),
     category: details.category,
@@ -303,7 +303,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
             // All bookings from our widget are trials, but filter explicitly for safety
             if (details.bookingType && details.bookingType !== 'trial') continue;
 
-            const booking = toAdminBooking(details);
+            // Skip bookings rescheduled to another date (stale entries in reminders set)
+            if (details.rescheduledTo && details.reconciliationStatus === 'rescheduled') continue;
+
+            const booking = toAdminBooking(details, dateStr);
             bookings.push(booking);
 
             // Count by status
