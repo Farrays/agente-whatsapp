@@ -1,15 +1,21 @@
 /**
  * BlogSchemas Component
  *
- * Centralizes all schema.org structured data for blog articles.
- * Includes Article, Person (author), BreadcrumbList, FAQPage, SpeakableSpecification,
- * Citation, DefinedTerm, and Review schemas for maximum GEO optimization.
+ * Runtime schema.org structured data for blog articles.
+ * Only generates schemas NOT already handled at build-time by prerender.mjs.
  *
- * GEO Features:
- * - Citation schema for statistics with proper source attribution
- * - DefinedTerm schema with full @id and sameAs for definitions
- * - Priority-based SpeakableSpecification for voice search
- * - ItemList schema for answer capsules (LLM-friendly)
+ * Build-time (prerender.mjs / schema-generators.mjs) handles:
+ * - Organization, WebSite, LocalBusiness, BreadcrumbList
+ * - Article (BlogPosting) with full author/publisher
+ * - FAQPage with all FAQ items
+ *
+ * This component handles (runtime-only schemas):
+ * - Person (standalone author E-E-A-T with bio, knowsAbout)
+ * - SpeakableSpecification (voice search)
+ * - VideoObject, HowTo (conditional)
+ * - ItemList for key facts with citations (GEO)
+ * - DefinedTerm for definitions (GEO)
+ * - Review for testimonials (E-E-A-T)
  */
 
 import React from 'react';
@@ -48,56 +54,8 @@ const BlogSchemas: React.FC<BlogSchemasProps> = ({ config, author: authorProp })
   const author = authorProp || DEFAULT_AUTHOR;
   const articleUrl = `${baseUrl}/${locale}/blog/${config.category}/${config.slug}`;
 
-  // Use ogImage for social sharing, fallback to featuredImage
-  const socialImage = config.ogImage || config.featuredImage.src;
-  const socialImageUrl = socialImage.startsWith('/') ? `${baseUrl}${socialImage}` : socialImage;
-
-  // Article Schema (BlogPosting)
-  const articleSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    '@id': `${articleUrl}#article`,
-    headline: t(`${config.articleKey}_title`),
-    description: t(`${config.articleKey}_metaDescription`),
-    image: {
-      '@type': 'ImageObject',
-      url: socialImageUrl,
-      width: config.featuredImage.width,
-      height: config.featuredImage.height,
-    },
-    thumbnailUrl: socialImageUrl,
-    datePublished: config.datePublished,
-    dateModified: config.dateModified,
-    wordCount: config.wordCount,
-    articleSection: config.category,
-    inLanguage:
-      locale === 'es' ? 'es-ES' : locale === 'ca' ? 'ca-ES' : locale === 'fr' ? 'fr-FR' : 'en-GB',
-    author: {
-      '@type': 'Person',
-      '@id': `${baseUrl}/${locale}${author.profileUrl}#person`,
-      name: author.name,
-      url: `${baseUrl}/${locale}${author.profileUrl}`,
-      image: author.image.startsWith('/') ? `${baseUrl}${author.image}` : author.image,
-      jobTitle: t(author.roleKey),
-      sameAs: author.sameAs,
-    },
-    publisher: {
-      '@type': 'Organization',
-      '@id': `${baseUrl}/#organization`,
-      name: "Farray's International Dance Center",
-      url: baseUrl,
-      logo: {
-        '@type': 'ImageObject',
-        url: `${baseUrl}/images/logo-fidc.png`,
-        width: '512',
-        height: '512',
-      },
-    },
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': articleUrl,
-    },
-  };
+  // Article Schema — generated at build time by prerender.mjs (generateArticleSchema)
+  // Do NOT generate here to avoid duplicate @type:Article with same @id
 
   // Person Schema (Author - E-E-A-T)
   const personSchema = {
@@ -283,40 +241,10 @@ const BlogSchemas: React.FC<BlogSchemasProps> = ({ config, author: authorProp })
         }))
       : [];
 
-  /**
-   * Answer Capsule Schema (ClaimReview-like for AI extraction)
-   * Answer capsules are the #1 predictor of AI citation
-   */
-  const answerCapsuleSections = config.sections.filter(s => s.type === 'answer-capsule');
-  const answerCapsuleSchemas =
-    answerCapsuleSections.length > 0
-      ? answerCapsuleSections
-          .filter(section => section.answerCapsule)
-          .map(section => {
-            const capsule = section.answerCapsule;
-            if (!capsule) return null;
-            return {
-              '@context': 'https://schema.org',
-              '@type': 'Question',
-              '@id': `${articleUrl}#${section.id}`,
-              name: t(capsule.questionKey),
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: t(capsule.answerKey),
-                url: `${articleUrl}#${section.id}`,
-                ...(capsule.sourceUrl && {
-                  citation: {
-                    '@type': 'CreativeWork',
-                    name: capsule.sourcePublisher,
-                    url: capsule.sourceUrl,
-                    datePublished: capsule.sourceYear,
-                  },
-                }),
-              },
-            };
-          })
-          .filter(Boolean)
-      : [];
+  // Answer Capsule standalone Question schemas removed — standalone @type:Question
+  // with acceptedAnswer mirrors FAQPage item structure and causes Google to report
+  // "FAQPage is duplicated". GEO value is preserved via HTML data-answer-capsule
+  // attributes and speakable selectors targeting [data-answer-capsule="true"].
 
   /**
    * Review Schema for testimonials
@@ -363,22 +291,14 @@ const BlogSchemas: React.FC<BlogSchemasProps> = ({ config, author: authorProp })
 
   return (
     <Helmet>
-      {/* Open Graph Article Tags */}
-      <meta property="og:type" content="article" />
-      <meta property="article:published_time" content={config.datePublished} />
-      <meta property="article:modified_time" content={config.dateModified} />
-      <meta property="article:author" content={author.name} />
-      <meta property="article:section" content={config.category} />
+      {/* OG Article Tags — handled by BlogArticleTemplate.tsx Helmet, not duplicated here */}
 
-      {/* Article Schema */}
-      <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
+      {/* Article Schema — generated at build time by prerender.mjs (generateArticleSchema) */}
+      {/* BreadcrumbList — generated at build time by prerender.mjs */}
+      {/* FAQPage — generated at build time by prerender.mjs (generateBlogFAQSchema) */}
 
-      {/* Person Schema */}
+      {/* Person Schema (runtime — includes bio, knowsAbout not in build-time) */}
       <script type="application/ld+json">{JSON.stringify(personSchema)}</script>
-
-      {/* BreadcrumbList generated at build-time by prerender.mjs */}
-
-      {/* FAQ Schema — generated at build time by prerender.mjs */}
 
       {/* Speakable Schema */}
       <script type="application/ld+json">{JSON.stringify(speakableSchema)}</script>
@@ -405,12 +325,7 @@ const BlogSchemas: React.FC<BlogSchemasProps> = ({ config, author: authorProp })
         </script>
       ))}
 
-      {/* Answer Capsule Schemas (Critical for GEO) */}
-      {answerCapsuleSchemas.map((schema, index) => (
-        <script key={`answer-capsule-${index}`} type="application/ld+json">
-          {JSON.stringify(schema)}
-        </script>
-      ))}
+      {/* Answer Capsule standalone Question schemas removed — see comment above */}
 
       {/* Review/Testimonial Schemas */}
       {reviewSchemas.map((schema, index) => (
