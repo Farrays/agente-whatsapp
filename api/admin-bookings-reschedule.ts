@@ -191,6 +191,7 @@ export async function rescheduleBooking(
   let nextSessionName: string | undefined;
   let nextSessionDate: string | undefined;
   let nextSessionTime: string | undefined;
+  let nextSessionDateISO: string | undefined; // YYYY-MM-DD from matched session (Madrid tz)
 
   if (mode === 'specific_session' && targetSessionId) {
     // Use specified session
@@ -201,6 +202,7 @@ export async function rescheduleBooking(
       const startsAt = (session as { startsAt?: string }).startsAt;
       if (startsAt) {
         const dt = new Date(startsAt);
+        nextSessionDateISO = dt.toLocaleDateString('en-CA', { timeZone: SPAIN_TIMEZONE });
         nextSessionDate = dt.toLocaleDateString('es-ES', {
           weekday: 'long',
           year: 'numeric',
@@ -358,6 +360,7 @@ export async function rescheduleBooking(
       const startsAt = (match as { startsAt?: string }).startsAt;
       if (startsAt) {
         const dt = new Date(startsAt);
+        nextSessionDateISO = dt.toLocaleDateString('en-CA', { timeZone: SPAIN_TIMEZONE });
         nextSessionDate = dt.toLocaleDateString('es-ES', {
           weekday: 'long',
           year: 'numeric',
@@ -455,21 +458,8 @@ export async function rescheduleBooking(
 
   // 7. Generate new event ID and save new booking to Redis
   const newEventId = `evt_${Date.now()}_rsch_${Math.random().toString(36).substring(2, 10)}`;
-  const newCalendarDateStr = nextSessionDate
-    ? (() => {
-        // Parse the ISO date from the session for reminders key
-        const nextWeekDate = new Date();
-        nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-        // Find the exact date from session - approximate with +7 days
-        const originalDate = booking.classDate;
-        if (originalDate && /^\d{4}-\d{2}-\d{2}$/.test(originalDate)) {
-          const d = new Date(originalDate + 'T00:00:00');
-          d.setDate(d.getDate() + 7);
-          return d.toISOString().split('T')[0];
-        }
-        return nextWeekDate.toISOString().split('T')[0];
-      })()
-    : null;
+  // Use the ACTUAL date from the matched Momence session (not an approximation)
+  const newCalendarDateStr = nextSessionDateISO || null;
 
   const newBookingDetails = {
     eventId: newEventId,
