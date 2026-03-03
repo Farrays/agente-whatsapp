@@ -174,6 +174,12 @@ export async function rescheduleBooking(
 
   const booking: BookingDetails = JSON.parse(raw);
 
+  // Normalize classDate to YYYY-MM-DD (Redis may store full ISO like "2026-03-04T11:00:00.000Z")
+  if (booking.classDate) {
+    const dateMatch = booking.classDate.match(/\d{4}-\d{2}-\d{2}/);
+    if (dateMatch) booking.classDate = dateMatch[0];
+  }
+
   // Safety: only trial bookings
   if (booking.bookingType && booking.bookingType !== 'trial') {
     return { success: false, error: 'Only trial bookings can be rescheduled' };
