@@ -34,8 +34,8 @@ import { retrieveRelevantChunks } from './rag/index.js';
 
 /** Static URL patterns that Laura is allowed to share (website pages only) */
 const VALID_STATIC_URL_PATTERNS: RegExp[] = [
-  // Booking widget (with or without query params)
-  /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/reservas(\?.*)?$/i,
+  // Booking widget (only allows ?classId=<number> or no params)
+  /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/reservas(\?classId=\d+)?$/i,
   // Known website pages
   /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/(hazte-socio|horarios-clases-baile-barcelona|precios-clases-baile-barcelona|calendario|contacto|mi-reserva|profesores-baile-barcelona|alquiler-salas-baile-barcelona|team-building-barcelona|regala-baile|preguntas-frecuentes|como-llegar-escuela-baile-barcelona)$/i,
   // App store links (from FAQs chunk)
@@ -52,7 +52,8 @@ const VALID_STATIC_URL_PATTERNS: RegExp[] = [
  */
 function extractUrlsFromToolResult(jsonResult: string): string[] {
   const urls: string[] = [];
-  const urlPattern = /https?:\/\/[^\s"'<>,}\]]+/g;
+  // Note: apostrophe NOT excluded — Momence host contains "Farray's"
+  const urlPattern = /https?:\/\/[^\s"<>,}\]]+/g;
   let match;
   while ((match = urlPattern.exec(jsonResult)) !== null) {
     urls.push(match[0]);
@@ -71,8 +72,9 @@ function sanitizeUrls(
   toolGeneratedUrls: Set<string> = new Set()
 ): string {
   // Match any URL (with or without protocol) containing our domains
+  // Note: apostrophe NOT excluded — Momence host contains "Farray's"
   const urlRegex =
-    /(?:https?:\/\/)?(?:www\.)?(?:farrayscenter\.com|momence\.com|app\.momence\.com)[^\s,)}\]"'<>]*/gi;
+    /(?:https?:\/\/)?(?:www\.)?(?:farrayscenter\.com|momence\.com|app\.momence\.com)[^\s,)}\]"<>]*/gi;
 
   let sanitized = text;
   let hadFabricatedUrls = false;

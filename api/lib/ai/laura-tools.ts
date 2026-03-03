@@ -71,7 +71,7 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'search_upcoming_classes',
     description:
-      'Buscar clases disponibles en los próximos días. Usa cuando pregunten por horarios, disponibilidad o clases de un estilo concreto. Usa los filtros para obtener resultados precisos.',
+      'HERRAMIENTA PRINCIPAL para clases. Buscar clases REALES disponibles en los próximos días. Devuelve booking_url y class_url para cada clase. SIEMPRE usa esta herramienta cuando el usuario pregunte por una clase, horario, día o estilo concreto. Usa los filtros day y level para resultados precisos.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -286,7 +286,7 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_weekly_schedule',
     description:
-      'Obtener el horario semanal FIJO de todas las clases del centro. Usa PRIMERO esta herramienta para consultas generales de horarios (ej: "¿a qué hora hay bachata?", "horarios de salsa"). Para consultar disponibilidad en fechas concretas o reservar, usa search_upcoming_classes después.',
+      'Horario semanal FIJO de referencia. SOLO para consultas muy generales (ej: "¿qué días hay bachata?"). NO tiene enlaces de reserva ni IDs. Después de usar esta herramienta, SIEMPRE llama a search_upcoming_classes para obtener booking_url y disponibilidad real.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -464,13 +464,15 @@ async function executeSearchClasses(
   }
 
   if (sessions.length === 0) {
+    const lang = context.lang || 'es';
     return JSON.stringify({
       found: 0,
       message: style
-        ? `No hay clases de ${style} disponibles en los próximos ${daysAhead} días.`
+        ? `No hay clases de ${style}${dayFilter ? ` el ${dayFilter}` : ''}${levelFilter ? ` nivel ${levelFilter}` : ''} disponibles en los próximos ${daysAhead} días.`
         : `No hay clases disponibles en los próximos ${daysAhead} días.`,
       _instruction:
-        'No se encontraron clases. NO inventes clases ni URLs. Usa get_weekly_schedule para mostrar el horario fijo o comparte www.farrayscenter.com/es/horarios-clases-baile-barcelona',
+        'No se encontraron clases con esos filtros. Si usaste filtros (day/level), prueba sin ellos para ampliar resultados. Si no hay resultados, usa get_weekly_schedule para mostrar el horario fijo general.',
+      scheduleUrl: `https://www.farrayscenter.com/${lang}/horarios-clases-baile-barcelona`,
     });
   }
 
@@ -499,7 +501,7 @@ async function executeSearchClasses(
     showing: classes.length,
     classes,
     _instruction:
-      'IMPORTANTE: Comparte SOLO las URLs exactas de class_url y booking_url de arriba. NO inventes, modifiques ni construyas URLs.',
+      'IMPORTANTE: booking_url = widget farrayscenter.com (para prueba gratis, locales nuevos). class_url = Momence (para pago, turistas o miembros sin creditos). Comparte SOLO la URL correcta segun el tipo de usuario. NUNCA inventes URLs.',
   });
 }
 
@@ -545,7 +547,12 @@ function executeGetWeeklySchedule(input: Record<string, unknown>): string {
     }
   }
 
-  return JSON.stringify({ found: classes.length, schedule: grouped });
+  return JSON.stringify({
+    found: classes.length,
+    schedule: grouped,
+    _instruction:
+      'Este horario es solo referencia. NO tiene enlaces de reserva. Para dar al usuario un enlace directo de reserva o consultar disponibilidad real, DEBES llamar a search_upcoming_classes con los filtros adecuados (style, day, level). NUNCA compartas URLs que no vengan de search_upcoming_classes o get_membership_options.',
+  });
 }
 
 async function executeGetMemberInfo(context: ToolContext): Promise<string> {
@@ -1369,9 +1376,11 @@ async function executeManageTrialBooking(
         });
       }
 
+      const lang = context.lang || 'es';
       return JSON.stringify({
         error: result.error || 'No se pudo reprogramar la clase.',
         hint: 'La clase de la semana que viene puede estar llena o no existir.',
+        alternative: `Si quiere otra clase diferente, cancela esta reserva y reserva de nuevo en https://www.farrayscenter.com/${lang}/reservas`,
       });
     } catch (error) {
       return JSON.stringify({
