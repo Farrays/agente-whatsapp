@@ -280,6 +280,16 @@
       "statusCode": 301
     },
     {
+      "source": "/clases",
+      "destination": "/es/clases",
+      "statusCode": 301
+    },
+    {
+      "source": "/clases/:slug*",
+      "destination": "/es/clases/:slug*",
+      "statusCode": 301
+    },
+    {
       "source": "/classes/afrobeat-en-barcelona",
       "destination": "/es/clases/afrobeats-barcelona",
       "statusCode": 301
@@ -557,6 +567,16 @@
     {
       "source": "/horarios",
       "destination": "/es/horarios-clases-baile-barcelona",
+      "statusCode": 301
+    },
+    {
+      "source": "/horarios-y-precios",
+      "destination": "/es/horarios-precios",
+      "statusCode": 301
+    },
+    {
+      "source": "/horarios-y-precios/:path*",
+      "destination": "/es/horarios-precios",
       "statusCode": 301
     },
     {
@@ -920,6 +940,11 @@
       "statusCode": 301
     },
 
+    {
+      "source": "/blog",
+      "destination": "/es/blog",
+      "statusCode": 301
+    },
     {
       "source": "/blog/classes/:slug*",
       "destination": "/es/blog",
