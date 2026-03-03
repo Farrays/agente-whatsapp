@@ -62,6 +62,42 @@ for (const locale of SUPPORTED_LOCALES) {
   }
 }
 
+// Load faq.json translations for FAQ page rich pre-rendered content
+const faqTranslations = {};
+for (const locale of SUPPORTED_LOCALES) {
+  try {
+    const filePath = path.join(__dirname, 'i18n', 'locales', locale, 'faq.json');
+    faqTranslations[locale] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (e) {
+    console.warn(`Warning: Could not load faq.json for locale "${locale}":`, e.message);
+    faqTranslations[locale] = {};
+  }
+}
+
+// Load about.json translations for About/Yunaisy rich pre-rendered content
+const aboutTranslations = {};
+for (const locale of SUPPORTED_LOCALES) {
+  try {
+    const filePath = path.join(__dirname, 'i18n', 'locales', locale, 'about.json');
+    aboutTranslations[locale] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (e) {
+    console.warn(`Warning: Could not load about.json for locale "${locale}":`, e.message);
+    aboutTranslations[locale] = {};
+  }
+}
+
+// Load contact.json translations for Contact page rich pre-rendered content
+const contactTranslations = {};
+for (const locale of SUPPORTED_LOCALES) {
+  try {
+    const filePath = path.join(__dirname, 'i18n', 'locales', locale, 'contact.json');
+    contactTranslations[locale] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (e) {
+    console.warn(`Warning: Could not load contact.json for locale "${locale}":`, e.message);
+    contactTranslations[locale] = {};
+  }
+}
+
 const LANDING_SLUGS = [
   'dancehall',
   'twerk',
@@ -674,6 +710,792 @@ const generateRichClassContent = (pageKey, lang) => {
 };
 
 /**
+ * Generates rich HTML for category hub pages (salsaBachata, danzasUrbanas, danzaBarcelona).
+ * Uses "Why" pillars and FAQ from pages.json translations.
+ */
+const CATEGORY_HUB_MAP = {
+  salsaBachata: {
+    prefix: 'salsaBachata',
+    whyItems: ['CubanSchool', 'Partner', 'FarrayMethod'],
+  },
+  danzasUrbanas: {
+    prefix: 'urban',
+    whyItems: ['International', 'AuthenticStyle', 'Career', 'Diversity', 'Prestige', 'Facilities'],
+  },
+  danza: {
+    prefix: 'danza',
+    whyItems: ['CubanSchool', 'Career'],
+  },
+};
+
+const generateRichCategoryHubContent = (pageKey, lang, allMetadata) => {
+  const config = CATEGORY_HUB_MAP[pageKey];
+  if (!config) return '';
+
+  const t = pagesTranslations[lang];
+  if (!t) return '';
+
+  const get = (key) => t[key] || '';
+  const meta = allMetadata[lang]?.[pageKey];
+  if (!meta) return '';
+
+  const sections = [];
+
+  // Hero from metadata
+  const cleanTitle = meta.title.split('|')[0].trim();
+  sections.push(`<header id="hero"><h1>${cleanTitle}</h1><p>${meta.description}</p></header>`);
+
+  // Why section with pillars
+  const whyItems = config.whyItems
+    .map((item) => {
+      const title = get(`${config.prefix}Why${item}Title`);
+      const content = get(`${config.prefix}Why${item}Content`);
+      return title && content ? `<li><strong>${title}</strong>: ${content}</li>` : '';
+    })
+    .filter(Boolean);
+
+  if (whyItems.length > 0) {
+    const whyTitle = get(`${config.prefix}WhyTitle`) || get(`${config.prefix}_whyTitle`);
+    sections.push(`<section id="why">${whyTitle ? `<h2>${whyTitle}</h2>` : ''}<ul>${whyItems.join('')}</ul></section>`);
+  }
+
+  // FAQ section
+  let faqHtml = '';
+  let faqCount = 0;
+  for (let i = 1; i <= 10; i++) {
+    const q = get(`${config.prefix}FaqQ${i}`);
+    const a = get(`${config.prefix}FaqA${i}`);
+    if (q && a) {
+      faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+      faqCount++;
+    }
+  }
+  if (faqCount > 0) {
+    const faqTitle = get(`${config.prefix}FaqTitle`) || 'FAQ';
+    sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+  }
+
+  if (sections.length <= 1) return ''; // Only hero, no real content
+
+  return `<main id="main-content">${sections.join('')}</main>`;
+};
+
+/**
+ * Generates rich HTML for the classes hub page using home.json translations.
+ * Shows class categories and FAQs.
+ */
+const generateRichClassesHubContent = (pageKey, lang, allMetadata) => {
+  if (pageKey !== 'classesHub' && pageKey !== 'classes') return '';
+
+  const t = homeTranslations[lang];
+  if (!t) return '';
+
+  const get = (key) => t[key] || '';
+  const meta = allMetadata[lang]?.[pageKey];
+  if (!meta) return '';
+
+  const sections = [];
+
+  // Hero
+  const cleanTitle = meta.title.split('|')[0].trim();
+  const intro = get('classesIntro');
+  sections.push(`<header id="hero"><h1>${cleanTitle}</h1>${intro ? `<p>${intro}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+  // Class categories
+  const categories = ['Latin', 'Urban', 'Contemporary', 'Fitness', 'Morning', 'World'];
+  const catItems = categories
+    .map((cat) => {
+      const title = get(`classCat${cat}Title`);
+      const desc = get(`classCat${cat}Desc`);
+      return title && desc ? `<li><strong>${title}</strong>: ${desc}</li>` : '';
+    })
+    .filter(Boolean);
+
+  if (catItems.length > 0) {
+    const classesTitle = get('classesTitle');
+    sections.push(`<section id="categories">${classesTitle ? `<h2>${classesTitle}</h2>` : ''}<ul>${catItems.join('')}</ul></section>`);
+  }
+
+  // FAQ section
+  let faqHtml = '';
+  let faqCount = 0;
+  for (let i = 1; i <= 9; i++) {
+    const q = get(`classesFaqQ${i}`);
+    const a = get(`classesFaqA${i}`);
+    if (q && a) {
+      faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+      faqCount++;
+    }
+  }
+  if (faqCount > 0) {
+    sections.push(`<section id="faq"><h2>FAQ</h2>${faqHtml}</section>`);
+  }
+
+  if (sections.length <= 1) return '';
+
+  return `<main id="main-content">${sections.join('')}</main>`;
+};
+
+/**
+ * Generates rich HTML for the facilities page using pages.json translations.
+ */
+const generateRichFacilitiesContent = (pageKey, lang, allMetadata) => {
+  if (pageKey !== 'facilities') return '';
+
+  const t = pagesTranslations[lang];
+  if (!t) return '';
+
+  const get = (key) => t[key] || '';
+  const meta = allMetadata[lang]?.[pageKey];
+  if (!meta) return '';
+
+  const sections = [];
+
+  // Hero
+  const heroTitle = get('facilitiesHeroTitle') || get('facilitiesH1');
+  if (!heroTitle) return '';
+  const heroSubtitle = get('facilitiesHeroSubtitle');
+  const heroDesc = get('facilitiesHeroDesc');
+  let heroHtml = `<h1>${heroTitle}</h1>`;
+  if (heroSubtitle) heroHtml += `<p><strong>${heroSubtitle}</strong></p>`;
+  if (heroDesc) heroHtml += `<p>${heroDesc}</p>`;
+  sections.push(`<header id="hero">${heroHtml}</header>`);
+
+  // Rooms section
+  const roomsTitle = get('facilitiesRoomsTitle');
+  if (roomsTitle) {
+    let roomsHtml = `<h2>${roomsTitle}</h2>`;
+    const roomsSubtitle = get('facilitiesRoomsSubtitle');
+    if (roomsSubtitle) roomsHtml += `<p>${roomsSubtitle}</p>`;
+    for (let i = 1; i <= 4; i++) {
+      const roomTitle = get(`facilitiesRoom${i}Title`);
+      const roomSize = get(`facilitiesRoom${i}Size`);
+      const roomDesc = get(`facilitiesRoom${i}Desc`);
+      if (roomTitle) {
+        roomsHtml += `<h3>${roomTitle}${roomSize ? ` (${roomSize})` : ''}</h3>`;
+        if (roomDesc) roomsHtml += `<p>${roomDesc}</p>`;
+      }
+    }
+    sections.push(`<section id="rooms">${roomsHtml}</section>`);
+  }
+
+  // Why section
+  const whyTitle = get('facilitiesWhyTitle');
+  if (whyTitle) {
+    let whyHtml = `<h2>${whyTitle}</h2><ul>`;
+    for (let i = 1; i <= 6; i++) {
+      const title = get(`facilitiesWhy${i}Title`);
+      const desc = get(`facilitiesWhy${i}Desc`);
+      if (title && desc) whyHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+    }
+    whyHtml += '</ul>';
+    sections.push(`<section id="why">${whyHtml}</section>`);
+  }
+
+  // FAQ section
+  let faqHtml = '';
+  let faqCount = 0;
+  for (let i = 1; i <= 7; i++) {
+    const q = get(`facilitiesFaqQ${i}`);
+    const a = get(`facilitiesFaqA${i}`);
+    if (q && a) {
+      faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+      faqCount++;
+    }
+  }
+  if (faqCount > 0) {
+    const faqTitle = get('facilitiesFaqTitle') || 'FAQ';
+    sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+  }
+
+  if (sections.length <= 1) return '';
+
+  return `<main id="main-content">${sections.join('')}</main>`;
+};
+
+/**
+ * Generates rich HTML for the FAQ page using faq.json translations.
+ * Structured with categorized Q&A sections.
+ */
+const generateRichFaqPageContent = (pageKey, lang) => {
+  if (pageKey !== 'faq') return '';
+
+  const t = faqTranslations[lang];
+  if (!t) return '';
+
+  const get = (key) => t[key] || '';
+
+  const sections = [];
+
+  // Hero
+  const heroTitle = get('faq_hero_title');
+  if (!heroTitle) return '';
+  const heroSubtitle = get('faq_hero_subtitle');
+  sections.push(`<header id="hero"><h1>${heroTitle}</h1>${heroSubtitle ? `<p>${heroSubtitle}</p>` : ''}</header>`);
+
+  // FAQ categories
+  const categories = [
+    { key: 'reservas', max: 13 },
+    { key: 'cuenta', max: 9 },
+    { key: 'otras', max: 6 },
+  ];
+
+  for (const cat of categories) {
+    const catTitle = get(`faq_category_${cat.key}_title`);
+    let catHtml = '';
+    let catCount = 0;
+    for (let i = 1; i <= cat.max; i++) {
+      const q = get(`faq_${cat.key}_${i}_q`);
+      const a = get(`faq_${cat.key}_${i}_a`);
+      if (q && a) {
+        catHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        catCount++;
+      }
+    }
+    if (catCount > 0) {
+      sections.push(`<section id="faq-${cat.key}">${catTitle ? `<h2>${catTitle}</h2>` : ''}${catHtml}</section>`);
+    }
+  }
+
+  if (sections.length <= 1) return '';
+
+  return `<main id="main-content">${sections.join('')}</main>`;
+};
+
+/**
+ * Generates rich HTML for info/service pages using their respective translation files.
+ * Handles: about, yunaisy, profesores, metodoFarray, teamBuilding, regalaBaile,
+ * estudioGrabacion, alquilerSalas, clasesParticulares, contact
+ */
+const generateRichInfoPageContent = (pageKey, lang, allMetadata) => {
+  const meta = allMetadata[lang]?.[pageKey];
+  if (!meta) return '';
+
+  const cleanTitle = meta.title.split('|')[0].trim();
+  const pt = pagesTranslations[lang] || {};
+  const at = aboutTranslations[lang] || {};
+  const ct = contactTranslations[lang] || {};
+
+  const getP = (key) => pt[key] || '';
+  const getA = (key) => at[key] || '';
+  const getC = (key) => ct[key] || '';
+
+  const sections = [];
+
+  // ── about ──
+  if (pageKey === 'about') {
+    const h1 = getA('about_h1') || cleanTitle;
+    const intro = getA('about_intro');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${intro ? `<p>${intro}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Story
+    const storyTitle = getA('about_story_title');
+    if (storyTitle) {
+      let storyHtml = `<h2>${storyTitle}</h2>`;
+      for (let i = 1; i <= 3; i++) {
+        const p = getA(`about_story_p${i}`);
+        if (p) storyHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="story">${storyHtml}</section>`);
+    }
+
+    // Values
+    const valuesTitle = getA('about_values_title');
+    if (valuesTitle) {
+      const valuePillars = ['love', 'community', 'wellbeing', 'opportunities', 'social', 'excellence'];
+      let valuesHtml = `<h2>${valuesTitle}</h2><ul>`;
+      for (const v of valuePillars) {
+        const title = getA(`about_value_${v}_title`);
+        const content = getA(`about_value_${v}_content`);
+        if (title && content) valuesHtml += `<li><strong>${title}</strong>: ${content}</li>`;
+      }
+      valuesHtml += '</ul>';
+      sections.push(`<section id="values">${valuesHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── yunaisy ──
+  if (pageKey === 'yunaisy') {
+    const h1 = getA('yunaisyFarray_hero_title') || cleanTitle;
+    const subtitle = getA('yunaisyFarray_hero_subtitle');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${subtitle ? `<p>${subtitle}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Intro
+    const introTitle = getA('yunaisyFarray_intro_title');
+    if (introTitle) {
+      let introHtml = `<h2>${introTitle}</h2>`;
+      for (let i = 1; i <= 2; i++) {
+        const p = getA(`yunaisyFarray_intro_p${i}`);
+        if (p) introHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="intro">${introHtml}</section>`);
+    }
+
+    // Roots
+    const rootsTitle = getA('yunaisyFarray_roots_title');
+    if (rootsTitle) {
+      let rootsHtml = `<h2>${rootsTitle}</h2>`;
+      for (let i = 1; i <= 2; i++) {
+        const p = getA(`yunaisyFarray_roots_p${i}`);
+        if (p) rootsHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="roots">${rootsHtml}</section>`);
+    }
+
+    // Career
+    const careerTitle = getA('yunaisyFarray_career_title');
+    if (careerTitle) {
+      let careerHtml = `<h2>${careerTitle}</h2>`;
+      for (let i = 1; i <= 6; i++) {
+        const p = getA(`yunaisyFarray_career_p${i}`);
+        if (p) careerHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="career">${careerHtml}</section>`);
+    }
+
+    // Method
+    const methodTitle = getA('yunaisyFarray_method_title');
+    if (methodTitle) {
+      let methodHtml = `<h2>${methodTitle}</h2>`;
+      for (let i = 1; i <= 4; i++) {
+        const p = getA(`yunaisyFarray_method_p${i}`);
+        if (p) methodHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="method">${methodHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── profesores ──
+  if (pageKey === 'profesores') {
+    const h1 = getP('teachersPageH1') || cleanTitle;
+    const subtitle = getP('teachersPageSubtitle');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${subtitle ? `<p>${subtitle}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Director
+    const directorTitle = getP('teachersPageDirectorTitle');
+    if (directorTitle) {
+      const directorSubtitle = getP('teachersPageDirectorSubtitle');
+      const directorSpecialty = getP('teachersPageDirectorSpecialty');
+      let dirHtml = `<h2>${directorTitle}</h2>`;
+      if (directorSubtitle) dirHtml += `<p>${directorSubtitle}</p>`;
+      if (directorSpecialty) dirHtml += `<p>${directorSpecialty}</p>`;
+      sections.push(`<section id="director">${dirHtml}</section>`);
+    }
+
+    // Team
+    const teamTitle = getP('teachersPageTeamTitle');
+    if (teamTitle) {
+      let teamHtml = `<h2>${teamTitle}</h2>`;
+      const teamSubtitle = getP('teachersPageTeamSubtitle');
+      if (teamSubtitle) teamHtml += `<p>${teamSubtitle}</p>`;
+      // List teacher specialties (compact, good for SEO)
+      let teacherList = '<ul>';
+      for (let i = 1; i <= 14; i++) {
+        const specialty = getP(`teachersPageTeacher${i}Specialty`);
+        if (specialty) teacherList += `<li>${specialty}</li>`;
+      }
+      // Named teachers
+      const namedTeachers = ['Juan', 'Crisag', 'Gretchen'];
+      for (const name of namedTeachers) {
+        const specialty = getP(`teachersPageTeacher${name}Specialty`);
+        if (specialty) teacherList += `<li>${specialty}</li>`;
+      }
+      teacherList += '</ul>';
+      teamHtml += teacherList;
+      sections.push(`<section id="team">${teamHtml}</section>`);
+    }
+
+    // Commitment
+    const commitTitle = getP('teachersPageCommitmentTitle');
+    if (commitTitle) {
+      let commitHtml = `<h2>${commitTitle}</h2>`;
+      const commitDesc = getP('teachersPageCommitmentDescription');
+      if (commitDesc) commitHtml += `<p>${commitDesc}</p>`;
+      sections.push(`<section id="commitment">${commitHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── metodoFarray ──
+  if (pageKey === 'metodoFarray') {
+    const h1 = getA('metodoFarray_hero_title') || cleanTitle;
+    const subtitle = getA('metodoFarray_hero_subtitle');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${subtitle ? `<p>${subtitle}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Problem
+    const problemTitle = getA('metodoFarray_problem_title');
+    if (problemTitle) {
+      let problemHtml = `<h2>${problemTitle}</h2>`;
+      for (let i = 1; i <= 2; i++) {
+        const p = getA(`metodoFarray_problem_p${i}`);
+        if (p) problemHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="problem">${problemHtml}</section>`);
+    }
+
+    // Solution
+    const solutionTitle = getA('metodoFarray_solution_title');
+    if (solutionTitle) {
+      let solHtml = `<h2>${solutionTitle}</h2>`;
+      for (let i = 1; i <= 2; i++) {
+        const p = getA(`metodoFarray_solution_p${i}`);
+        if (p) solHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="solution">${solHtml}</section>`);
+    }
+
+    // Pillars
+    const pillarsTitle = getA('metodoFarray_pillars_title');
+    if (pillarsTitle) {
+      let pillarsHtml = `<h2>${pillarsTitle}</h2><ul>`;
+      for (let i = 1; i <= 3; i++) {
+        const title = getA(`metodoFarray_pillar${i}_title`);
+        const desc = getA(`metodoFarray_pillar${i}_desc`);
+        if (title && desc) pillarsHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      pillarsHtml += '</ul>';
+      sections.push(`<section id="pillars">${pillarsHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── teamBuilding ──
+  if (pageKey === 'teamBuilding') {
+    const h1 = getP('teamBuilding_heroTitle') || cleanTitle;
+    const heroSubtitle = getP('teamBuilding_heroSubtitle');
+    const heroIntro = getP('teamBuilding_heroIntro');
+    let heroHtml = `<h1>${h1}</h1>`;
+    if (heroSubtitle) heroHtml += `<p><strong>${heroSubtitle}</strong></p>`;
+    if (heroIntro) heroHtml += `<p>${heroIntro}</p>`;
+    sections.push(`<header id="hero">${heroHtml}</header>`);
+
+    // Features
+    const featuresTitle = getP('teamBuilding_features_title');
+    if (featuresTitle) {
+      const featureKeys = ['workshops', 'choreography', 'competitions', 'videoclip', 'flashmob', 'custom'];
+      let featHtml = `<h2>${featuresTitle}</h2><ul>`;
+      for (const fk of featureKeys) {
+        const title = getP(`teamBuilding_feature_${fk}_title`);
+        const desc = getP(`teamBuilding_feature_${fk}_desc`);
+        if (title && desc) featHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      featHtml += '</ul>';
+      sections.push(`<section id="features">${featHtml}</section>`);
+    }
+
+    // Benefits
+    const benefitsTitle = getP('teamBuilding_benefits_title');
+    if (benefitsTitle) {
+      const benefitKeys = ['experience', 'professionals', 'flexibility', 'results', 'fun', 'location'];
+      let benHtml = `<h2>${benefitsTitle}</h2><ul>`;
+      for (const bk of benefitKeys) {
+        const title = getP(`teamBuilding_benefit_${bk}_title`);
+        const desc = getP(`teamBuilding_benefit_${bk}_desc`);
+        if (title && desc) benHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      benHtml += '</ul>';
+      sections.push(`<section id="benefits">${benHtml}</section>`);
+    }
+
+    // FAQ
+    let faqHtml = '';
+    let faqCount = 0;
+    for (let i = 1; i <= 7; i++) {
+      const q = getP(`teamBuilding_faq${i}_question`);
+      const a = getP(`teamBuilding_faq${i}_answer`);
+      if (q && a) {
+        faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        faqCount++;
+      }
+    }
+    if (faqCount > 0) {
+      const faqTitle = getP('teamBuilding_faq_title') || 'FAQ';
+      sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── regalaBaile ──
+  if (pageKey === 'regalaBaile') {
+    const h1 = getP('regalaBaile_hero_title') || cleanTitle;
+    const heroSubtitle = getP('regalaBaile_hero_subtitle');
+    const heroDesc = getP('regalaBaile_hero_description');
+    let heroHtml = `<h1>${h1}</h1>`;
+    if (heroSubtitle) heroHtml += `<p><strong>${heroSubtitle}</strong></p>`;
+    if (heroDesc) heroHtml += `<p>${heroDesc}</p>`;
+    sections.push(`<header id="hero">${heroHtml}</header>`);
+
+    // Benefits
+    const benefitsTitle = getP('regalaBaile_benefits_title');
+    if (benefitsTitle) {
+      let benHtml = `<h2>${benefitsTitle}</h2><ul>`;
+      for (let i = 1; i <= 6; i++) {
+        const title = getP(`regalaBaile_benefit${i}_title`);
+        const desc = getP(`regalaBaile_benefit${i}_desc`);
+        if (title && desc) benHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      benHtml += '</ul>';
+      sections.push(`<section id="benefits">${benHtml}</section>`);
+    }
+
+    // How it works (steps)
+    const howTitle = getP('regalaBaile_how_title');
+    if (howTitle) {
+      let howHtml = `<h2>${howTitle}</h2><ol>`;
+      for (let i = 1; i <= 4; i++) {
+        const title = getP(`regalaBaile_step${i}_title`);
+        const desc = getP(`regalaBaile_step${i}_desc`);
+        if (title) howHtml += `<li><strong>${title}</strong>${desc ? `: ${desc}` : ''}</li>`;
+      }
+      howHtml += '</ol>';
+      sections.push(`<section id="how-it-works">${howHtml}</section>`);
+    }
+
+    // FAQ
+    let faqHtml = '';
+    let faqCount = 0;
+    for (let i = 1; i <= 7; i++) {
+      const q = getP(`regalaBaile_faq${i}_q`);
+      const a = getP(`regalaBaile_faq${i}_a`);
+      if (q && a) {
+        faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        faqCount++;
+      }
+    }
+    if (faqCount > 0) {
+      const faqTitle = getP('regalaBaile_faq_title') || 'FAQ';
+      sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── estudioGrabacion ──
+  if (pageKey === 'estudioGrabacion') {
+    const h1 = getP('estudioGrabacion_h1') || cleanTitle;
+    const intro = getP('estudioGrabacion_intro');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${intro ? `<p>${intro}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Services
+    const solutionTitle = getP('estudioGrabacion_solution_title');
+    if (solutionTitle) {
+      let servHtml = `<h2>${solutionTitle}</h2><ul>`;
+      for (let i = 1; i <= 6; i++) {
+        const title = getP(`estudioGrabacion_service${i}_title`);
+        const desc = getP(`estudioGrabacion_service${i}_desc`);
+        if (title && desc) servHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      servHtml += '</ul>';
+      sections.push(`<section id="services">${servHtml}</section>`);
+    }
+
+    // Benefits
+    const benefitsTitle = getP('estudioGrabacion_benefits_title');
+    if (benefitsTitle) {
+      let benHtml = `<h2>${benefitsTitle}</h2><ul>`;
+      for (let i = 1; i <= 6; i++) {
+        const title = getP(`estudioGrabacion_benefit${i}_title`);
+        const desc = getP(`estudioGrabacion_benefit${i}_desc`);
+        if (title && desc) benHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      benHtml += '</ul>';
+      sections.push(`<section id="benefits">${benHtml}</section>`);
+    }
+
+    // FAQ
+    let faqHtml = '';
+    let faqCount = 0;
+    for (let i = 1; i <= 8; i++) {
+      const q = getP(`estudioGrabacion_faq${i}_q`);
+      const a = getP(`estudioGrabacion_faq${i}_a`);
+      if (q && a) {
+        faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        faqCount++;
+      }
+    }
+    if (faqCount > 0) {
+      const faqTitle = getP('estudioGrabacion_faq_title') || 'FAQ';
+      sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── alquilerSalas ──
+  if (pageKey === 'alquilerSalas') {
+    const h1 = getP('roomRental_hero_title') || cleanTitle;
+    const heroSubtitle = getP('roomRental_hero_subtitle');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${heroSubtitle ? `<p>${heroSubtitle}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Intro
+    const introTitle = getP('roomRental_intro_title');
+    if (introTitle) {
+      let introHtml = `<h2>${introTitle}</h2>`;
+      for (let i = 1; i <= 3; i++) {
+        const p = getP(`roomRental_intro_p${i}`);
+        if (p) introHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="intro">${introHtml}</section>`);
+    }
+
+    // Rooms
+    const roomsTitle = getP('roomRental_rooms_title');
+    if (roomsTitle) {
+      let roomsHtml = `<h2>${roomsTitle}</h2>`;
+      const roomLetters = ['A', 'B', 'C', 'D'];
+      for (const letter of roomLetters) {
+        const name = getP(`roomRental_room${letter}_name`);
+        const size = getP(`roomRental_room${letter}_size`);
+        const desc = getP(`roomRental_room${letter}_desc`);
+        if (name) {
+          roomsHtml += `<h3>${name}${size ? ` (${size})` : ''}</h3>`;
+          if (desc) roomsHtml += `<p>${desc}</p>`;
+        }
+      }
+      sections.push(`<section id="rooms">${roomsHtml}</section>`);
+    }
+
+    // Why Farray's
+    const whyTitle = getP('roomRental_whyFarrays_title');
+    if (whyTitle) {
+      let whyHtml = `<h2>${whyTitle}</h2><ul>`;
+      for (let i = 1; i <= 6; i++) {
+        const title = getP(`roomRental_whyFarrays_item${i}_title`);
+        const desc = getP(`roomRental_whyFarrays_item${i}_desc`);
+        if (title && desc) whyHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      whyHtml += '</ul>';
+      sections.push(`<section id="why">${whyHtml}</section>`);
+    }
+
+    // FAQ
+    let faqHtml = '';
+    let faqCount = 0;
+    for (let i = 1; i <= 5; i++) {
+      const q = getP(`roomRental_faq${i}_q`);
+      const a = getP(`roomRental_faq${i}_a`);
+      if (q && a) {
+        faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        faqCount++;
+      }
+    }
+    if (faqCount > 0) {
+      const faqTitle = getP('roomRental_faq_section_title') || 'FAQ';
+      sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── clasesParticulares ──
+  if (pageKey === 'clasesParticulares') {
+    const h1 = getP('particularesPage_h1') || cleanTitle;
+    const subtitle = getP('particularesPage_subtitle');
+    const intro = getP('particularesPage_intro');
+    let heroHtml = `<h1>${h1}</h1>`;
+    if (subtitle) heroHtml += `<p><strong>${subtitle}</strong></p>`;
+    if (intro) heroHtml += `<p>${intro}</p>`;
+    sections.push(`<header id="hero">${heroHtml}</header>`);
+
+    // Benefits
+    const benefitsTitle = getP('particularesPage_benefits_title') || getP('particularesPage_benefitsTitle');
+    if (benefitsTitle) {
+      let benHtml = `<h2>${benefitsTitle}</h2><ul>`;
+      for (let i = 1; i <= 4; i++) {
+        const title = getP(`particularesPage_benefit${i}_title`);
+        const desc = getP(`particularesPage_benefit${i}_desc`);
+        if (title && desc) benHtml += `<li><strong>${title}</strong>: ${desc}</li>`;
+      }
+      benHtml += '</ul>';
+      sections.push(`<section id="benefits">${benHtml}</section>`);
+    }
+
+    // What to expect
+    const whatTitle = getP('particularesPage_whatToExpect_title');
+    if (whatTitle) {
+      let whatHtml = `<h2>${whatTitle}</h2>`;
+      for (let i = 1; i <= 3; i++) {
+        const p = getP(`particularesPage_whatToExpect_p${i}`);
+        if (p) whatHtml += `<p>${p}</p>`;
+      }
+      sections.push(`<section id="what-to-expect">${whatHtml}</section>`);
+    }
+
+    // FAQ
+    let faqHtml = '';
+    let faqCount = 0;
+    for (let i = 1; i <= 7; i++) {
+      const q = getP(`particularesPage_faqQ${i}`);
+      const a = getP(`particularesPage_faqA${i}`);
+      if (q && a) {
+        faqHtml += `<details><summary>${q}</summary><p>${a}</p></details>`;
+        faqCount++;
+      }
+    }
+    if (faqCount > 0) {
+      const faqTitle = getP('particularesPage_faq_title') || getP('particularesPage_faqTitle') || 'FAQ';
+      sections.push(`<section id="faq"><h2>${faqTitle}</h2>${faqHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  // ── contact ──
+  if (pageKey === 'contact') {
+    const h1 = getC('contact_hero_title') || cleanTitle;
+    const heroSubtitle = getC('contact_hero_subtitle');
+    sections.push(`<header id="hero"><h1>${h1}</h1>${heroSubtitle ? `<p>${heroSubtitle}</p>` : `<p>${meta.description}</p>`}</header>`);
+
+    // Contact info
+    const infoTitle = getC('contact_info_title');
+    if (infoTitle) {
+      let infoHtml = `<h2>${infoTitle}</h2><ul>`;
+      const addressTitle = getC('contact_address_title');
+      if (addressTitle) infoHtml += `<li><strong>${addressTitle}</strong></li>`;
+      const phoneTitle = getC('contact_phone_title');
+      if (phoneTitle) infoHtml += `<li><strong>${phoneTitle}</strong></li>`;
+      const emailTitle = getC('contact_email_title');
+      if (emailTitle) infoHtml += `<li><strong>${emailTitle}</strong></li>`;
+      infoHtml += '</ul>';
+      sections.push(`<section id="contact-info">${infoHtml}</section>`);
+    }
+
+    // Schedule
+    const schedTitle = getC('contact_schedule_title');
+    if (schedTitle) {
+      let schedHtml = `<h2>${schedTitle}</h2><ul>`;
+      const weekdays = getC('contact_schedule_weekdays');
+      if (weekdays) schedHtml += `<li>${weekdays}</li>`;
+      const saturday = getC('contact_schedule_saturday');
+      if (saturday) schedHtml += `<li>${saturday}</li>`;
+      schedHtml += '</ul>';
+      sections.push(`<section id="schedule">${schedHtml}</section>`);
+    }
+
+    if (sections.length <= 1) return '';
+    return `<main id="main-content">${sections.join('')}</main>`;
+  }
+
+  return ''; // Not an info page
+};
+
+/**
  * Genera HTML simple desde la metadata de una página.
  * @param {string} pageKey - Clave de la página (ej: 'dancehall')
  * @param {string} lang - Idioma (es, ca, en, fr)
@@ -693,6 +1515,26 @@ const generateContentFromMetadata = (pageKey, lang, allMetadata) => {
   // Try rich blog content (blog articles with blog.json translations)
   const blogContent = generateRichBlogContent(pageKey, lang);
   if (blogContent) return blogContent;
+
+  // Category hub pages (salsaBachata, danzasUrbanas, danzaBarcelona)
+  const categoryContent = generateRichCategoryHubContent(pageKey, lang, allMetadata);
+  if (categoryContent) return categoryContent;
+
+  // Classes hub page
+  const classesHubContent = generateRichClassesHubContent(pageKey, lang, allMetadata);
+  if (classesHubContent) return classesHubContent;
+
+  // Facilities page
+  const facilitiesContent = generateRichFacilitiesContent(pageKey, lang, allMetadata);
+  if (facilitiesContent) return facilitiesContent;
+
+  // FAQ page
+  const faqContent = generateRichFaqPageContent(pageKey, lang);
+  if (faqContent) return faqContent;
+
+  // Info/service pages (about, yunaisy, profesores, metodoFarray, teamBuilding, etc.)
+  const infoContent = generateRichInfoPageContent(pageKey, lang, allMetadata);
+  if (infoContent) return infoContent;
 
   // Fallback: simple H1 + description for non-class pages
   const meta = allMetadata[lang]?.[pageKey];
