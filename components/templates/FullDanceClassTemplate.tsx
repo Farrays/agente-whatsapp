@@ -872,10 +872,6 @@ const FullDanceClassTemplate: React.FC<{ config: FullDanceClassConfig }> = ({ co
     // Prefer real Google reviews for Schema.org
     if (realGoogleReviews.length > 0) {
       return realGoogleReviews.map(review => ({
-        itemReviewed: {
-          name: `${t(`${config.styleKey}PageTitle`)} - Farray's Center`,
-          type: 'Course',
-        },
         author: review.author,
         reviewRating: { ratingValue: '5', bestRating: '5' },
         reviewBody: getReviewText(review, locale as Locale),
@@ -884,16 +880,12 @@ const FullDanceClassTemplate: React.FC<{ config: FullDanceClassConfig }> = ({ co
     }
     // Fallback to static testimonials if no Google reviews
     return config.testimonials.map(testimonial => ({
-      itemReviewed: {
-        name: `${t(`${config.styleKey}PageTitle`)} - Farray's Center`,
-        type: 'Course',
-      },
       author: testimonial.name,
       reviewRating: { ratingValue: testimonial.rating.toString(), bestRating: '5' },
       reviewBody: testimonial.quote[locale as Locale],
       datePublished: currentDate,
     }));
-  }, [realGoogleReviews, config.testimonials, locale, config.styleKey, t, currentDate]);
+  }, [realGoogleReviews, config.testimonials, locale, currentDate]);
 
   const breadcrumbItems = useMemo(
     () => [

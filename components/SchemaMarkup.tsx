@@ -347,9 +347,10 @@ interface CourseSchemaProps {
 
 /**
  * Props for ReviewSchema - Individual review.
+ * itemReviewed is optional: required for standalone reviews, omitted when nested in AggregateReviewsSchema.
  */
 interface ReviewSchemaProps {
-  itemReviewed: {
+  itemReviewed?: {
     name: string;
     type: string;
   };
@@ -579,10 +580,12 @@ export const ReviewSchema: React.FC<ReviewSchemaProps> = props => {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Review',
-    itemReviewed: {
-      '@type': props.itemReviewed.type,
-      name: props.itemReviewed.name,
-    },
+    ...(props.itemReviewed && {
+      itemReviewed: {
+        '@type': props.itemReviewed.type,
+        name: props.itemReviewed.name,
+      },
+    }),
     author: {
       '@type': 'Person',
       name: props.author,
@@ -872,10 +875,8 @@ export const AggregateReviewsSchema: React.FC<{
         bestRating: review.reviewRating.bestRating,
       },
       reviewBody: review.reviewBody,
-      itemReviewed: {
-        '@type': itemType,
-        name: itemName,
-      },
+      // Note: itemReviewed omitted here because reviews are nested inside the parent
+      // entity (Course/LocalBusiness). Google Search Console flags this as a conflict.
       ...(review.datePublished && { datePublished: review.datePublished }),
     })),
   };

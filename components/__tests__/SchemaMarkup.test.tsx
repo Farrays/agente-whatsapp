@@ -107,14 +107,12 @@ describe('SchemaMarkup', () => {
     const defaultProps = {
       reviews: [
         {
-          itemReviewed: { name: 'Clases de Dancehall', type: 'Course' },
           author: 'María García',
           reviewRating: { ratingValue: '5', bestRating: '5' },
           reviewBody: 'Excelentes clases!',
           datePublished: '2024-01-01',
         },
         {
-          itemReviewed: { name: 'Clases de Dancehall', type: 'Course' },
           author: 'Carlos López',
           reviewRating: { ratingValue: '4', bestRating: '5' },
           reviewBody: 'Muy buena experiencia',
@@ -153,7 +151,7 @@ describe('SchemaMarkup', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('includes itemReviewed in each review for Google structured data compliance', () => {
+    it('omits itemReviewed from nested reviews (parent entity is the reviewed item)', () => {
       // Spy on JSON.stringify to capture the schema object passed to Helmet
       const stringifySpy = vi.spyOn(JSON, 'stringify');
       renderWithHelmet(<AggregateReviewsSchema {...defaultProps} />);
@@ -167,12 +165,12 @@ describe('SchemaMarkup', () => {
       const schema = schemaCalls[0];
       expect(schema.review).toHaveLength(2);
 
-      // Each Review MUST have itemReviewed (Google requirement - fixes GSC error)
+      // Nested reviews must NOT have itemReviewed — the parent Course is the reviewed item.
+      // Including itemReviewed causes Google Search Console error:
+      // "A nested <parent_node> object cannot contain the field itemReviewed"
       for (const review of schema.review) {
         expect(review['@type']).toBe('Review');
-        expect(review.itemReviewed).toBeDefined();
-        expect(review.itemReviewed['@type']).toBe('Course');
-        expect(review.itemReviewed.name).toBe(defaultProps.itemName);
+        expect(review.itemReviewed).toBeUndefined();
       }
 
       stringifySpy.mockRestore();

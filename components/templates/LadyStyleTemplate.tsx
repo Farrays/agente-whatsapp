@@ -526,20 +526,12 @@ const LadyStyleTemplate: React.FC<LadyStyleTemplateProps> = ({ config }) => {
   // Schema Markup data for reviews - Enterprise: use Google Reviews when enabled
   const reviewsSchemaData = googleReviewsConfig?.enabled
     ? googleReviews.map(review => ({
-        itemReviewed: {
-          name: `Clases de ${t(config.pageTitleKey)} - Farray's Center`,
-          type: 'Course',
-        },
         author: review.author,
         reviewRating: { ratingValue: review.rating.toString(), bestRating: '5' },
         reviewBody: getReviewText(review, locale as Locale),
         datePublished: review.dateISO,
       }))
     : (config.testimonials ?? []).map(testimonial => ({
-        itemReviewed: {
-          name: `Clases de ${t(config.pageTitleKey)} - Farray's Center`,
-          type: 'Course',
-        },
         author: testimonial.name,
         reviewRating: { ratingValue: testimonial.rating.toString(), bestRating: '5' },
         reviewBody: testimonial.quote[locale as Locale],

@@ -192,16 +192,12 @@ const DanceClassPageTemplate: React.FC<DanceClassPageConfig> = ({
   const reviewsSchemaData = useMemo(
     () =>
       testimonials.map(testimonial => ({
-        itemReviewed: {
-          name: `Clases de ${t(`${styleKey}PageTitle`)} - Farray's Center`,
-          type: 'Course',
-        },
         author: testimonial.name,
         reviewRating: { ratingValue: testimonial.rating.toString(), bestRating: '5' },
         reviewBody: testimonial.quote[locale as Locale],
         datePublished: new Date().toISOString().split('T')[0],
       })),
-    [testimonials, locale, styleKey, t]
+    [testimonials, locale]
   );
 
   // Breadcrumb items
