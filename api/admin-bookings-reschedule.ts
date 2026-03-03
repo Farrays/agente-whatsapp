@@ -262,14 +262,28 @@ export async function rescheduleBooking(
     );
 
     try {
-      const sessions = await client.getSessions({
-        page: 1,
-        pageSize: 50,
-        startAfter: searchStart.toISOString(),
-        startBefore: searchEnd.toISOString(),
-        sortBy: 'startsAt',
-        sortOrder: 'ASC',
-      });
+      // Fetch all sessions in the search window (may need multiple pages)
+      // Typical schedule has ~30 classes/day, search window is 3 days = ~90 sessions
+      const allSessions: Record<string, unknown>[] = [];
+      let currentPage = 1;
+      const PAGE_SIZE = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const sessionsPage = await client.getSessions({
+          page: currentPage,
+          pageSize: PAGE_SIZE,
+          startAfter: searchStart.toISOString(),
+          startBefore: searchEnd.toISOString(),
+          sortBy: 'startsAt',
+          sortOrder: 'ASC',
+        });
+        allSessions.push(...sessionsPage.payload);
+        hasMore = sessionsPage.payload.length === PAGE_SIZE && currentPage < 3; // max 3 pages
+        currentPage++;
+      }
+
+      const sessions = { payload: allSessions };
 
       // Exact name match target (case-insensitive, trimmed)
       const targetClassName = booking.className.toLowerCase().trim();
