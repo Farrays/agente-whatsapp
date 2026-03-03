@@ -48,7 +48,7 @@ const CategoriesSchemaMarkup: React.FC = () => {
           url: `${siteUrl}${category.pillarSlug}`,
           provider: {
             '@type': 'Organization',
-            name: "Farray's Dance Academy",
+            name: "Farray's International Dance Center",
             url: siteUrl,
           },
         },

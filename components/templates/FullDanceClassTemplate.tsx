@@ -1026,14 +1026,16 @@ const FullDanceClassTemplate: React.FC<{ config: FullDanceClassConfig }> = ({ co
 
       {/* LocalBusiness Schema removed - already injected at build-time by prerender.mjs */}
 
-      {/* Enterprise Course Schema with CourseInstance for each schedule */}
-      <CourseSchemaEnterprise
-        name={t(`${config.styleKey}CourseSchemaName`)}
-        description={t(`${config.styleKey}CourseSchemaDesc`)}
-        pageUrl={pageUrl}
-        baseUrl={baseUrl}
-        schedules={courseSchedules}
-      />
+      {/* Enterprise Course Schema — only when NOT using DynamicScheduleSchema (which generates its own Course) */}
+      {!useDynamicSchedule && (
+        <CourseSchemaEnterprise
+          name={t(`${config.styleKey}CourseSchemaName`)}
+          description={t(`${config.styleKey}CourseSchemaDesc`)}
+          pageUrl={pageUrl}
+          baseUrl={baseUrl}
+          schedules={courseSchedules}
+        />
+      )}
 
       <AggregateReviewsSchema
         reviews={reviewsSchemaData}
@@ -1436,7 +1438,7 @@ const FullDanceClassTemplate: React.FC<{ config: FullDanceClassConfig }> = ({ co
             endHour={config.scheduleEndHour}
             locale={locale}
             courseName={t(`${config.styleKey}Title`)}
-            courseUrl={`https://www.farrayscenter.com/${locale}${config.stylePath}`}
+            courseUrl={pageUrl}
             courseDescription={t(`${config.styleKey}MetaDescription`)}
             fallbackData={staticFallbackData}
             titleKey={`${config.styleKey}ScheduleTitle`}

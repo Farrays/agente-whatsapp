@@ -249,44 +249,8 @@ const HorariosPageV2: React.FC = () => {
 
   // FAQPage Schema removed — generated at build-time by prerender.mjs
 
-  // Organization Schema - Enterprise with translations
-  const organizationSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'EducationalOrganization',
-    '@id': `${baseUrl}/#organization`,
-    name: "Farray's International Dance Center",
-    alternateName: "Farray's Center Barcelona",
-    description: t('schema_org_description'), // Uses global schema translation
-    url: baseUrl,
-    foundingDate: '2017',
-    inLanguage: getInLanguage(),
-    areaServed: {
-      '@type': 'City',
-      name: 'Barcelona',
-      '@id': 'https://www.wikidata.org/wiki/Q1492', // Wikidata ID for Barcelona
-    },
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: "Carrer d'Entença, 100, Local 1",
-      addressLocality: 'Barcelona',
-      postalCode: '08015',
-      addressRegion: 'Cataluña',
-      addressCountry: 'ES',
-    },
-    geo: {
-      '@type': 'GeoCoordinates',
-      latitude: 41.380421,
-      longitude: 2.148014,
-    },
-    // aggregateRating removed - already in build-time LocalBusiness #danceschool schema
-    availableLanguage: ['es', 'ca', 'en', 'fr'],
-    sameAs: [
-      'https://www.instagram.com/farrays_centerbcn/',
-      'https://www.facebook.com/farrayscenter/',
-      'https://www.youtube.com/@farraysinternationaldance',
-      'https://www.tiktok.com/@farrays_centerbcn',
-    ],
-  };
+  // Organization Schema removed — generated at build-time by prerender.mjs with @id /#organization
+  // (was EducationalOrganization here, conflicting with build-time Organization same @id)
 
   // WebPage Schema - Enterprise GEO/AIEO optimized with full translations
   const webPageSchema = {
@@ -398,8 +362,7 @@ const HorariosPageV2: React.FC = () => {
           name="twitter:image:alt"
           content={HERO_IMAGE.alt[locale as Locale] || HERO_IMAGE.alt.es}
         />
-        {/* BreadcrumbList + FAQPage generated at build-time by prerender.mjs */}
-        <script type="application/ld+json">{JSON.stringify(organizationSchema)}</script>
+        {/* BreadcrumbList + FAQPage + Organization generated at build-time by prerender.mjs */}
         <script type="application/ld+json">{JSON.stringify(webPageSchema)}</script>
       </Helmet>
 

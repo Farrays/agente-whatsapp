@@ -67,67 +67,123 @@ Sitemap: https://www.farrayscenter.com/sitemap.xml
 # Google (primary)
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Googlebot-Image
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Googlebot-Video
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Bing / Microsoft
 User-agent: Bingbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: msnbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Yahoo
 User-agent: Slurp
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # Yandex (Russia/Eastern Europe)
 User-agent: Yandex
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 User-agent: YandexBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # Baidu (China)
 User-agent: Baiduspider
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # DuckDuckGo
 User-agent: DuckDuckBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Qwant (European privacy search)
 User-agent: Qwantify
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Brave Search
 User-agent: BraveBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Ecosia (eco-friendly search)
 User-agent: Ecosia
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Mojeek (UK independent search)
 User-agent: MojeekBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # 
@@ -138,100 +194,184 @@ Crawl-delay: 1
 # OpenAI / ChatGPT
 User-agent: GPTBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Anthropic / Claude
 User-agent: anthropic-ai
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Claude-Web
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: ClaudeBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Google AI (Gemini, Bard, AI Overviews)
 User-agent: Google-Extended
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Google-InspectionTool
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Perplexity AI
 User-agent: PerplexityBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Microsoft Copilot / Bing AI
 User-agent: BingPreview
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Apple Intelligence / Siri
 User-agent: Applebot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Applebot-Extended
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Meta AI (WhatsApp, Instagram, Facebook AI)
 User-agent: meta-externalagent
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: MetaAI
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Amazon / Alexa
 User-agent: Amazonbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # You.com AI Search
 User-agent: YouBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Cohere AI
 User-agent: cohere-ai
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # AI21 Labs
 User-agent: AI21Bot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Allen Institute for AI
 User-agent: AI2Bot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Neeva AI (acquired by Snowflake)
 User-agent: NeevaBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # ByteDance / TikTok AI
 User-agent: Bytespider
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Huawei / Petal Search
 User-agent: PetalBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # 
@@ -241,58 +381,106 @@ Crawl-delay: 0
 # Facebook / Meta
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Facebot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Twitter / X
 User-agent: Twitterbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # LinkedIn
 User-agent: LinkedInBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Pinterest
 User-agent: Pinterest
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Pinterestbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Telegram
 User-agent: TelegramBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # WhatsApp (uses facebookexternalhit, but also)
 User-agent: WhatsApp
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Slack
 User-agent: Slackbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 User-agent: Slackbot-LinkExpanding
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Discord
 User-agent: Discordbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # Snapchat
 User-agent: Snapchat
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # 
@@ -302,49 +490,85 @@ Crawl-delay: 0
 # CommonCrawl (used by many AI models for training)
 User-agent: CCBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # Internet Archive / Wayback Machine
 User-agent: ia_archiver
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
 # Diffbot (knowledge graphs)
 User-agent: Diffbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 1
 
-# 
+#
 # SEO TOOLS (Allow for monitoring)
-# 
+#
 
 # Ahrefs
 User-agent: AhrefsBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 2
 
 # SEMrush
 User-agent: SemrushBot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 2
 
 # Moz
 User-agent: rogerbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 2
 
 User-agent: dotbot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 2
 
 # Majestic
 User-agent: MJ12bot
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 2
 
 # Screaming Frog (audits)
 User-agent: Screaming Frog SEO Spider
 Allow: /
+Disallow: /admin/
+Disallow: /test/
+Disallow: /*.json$
+Disallow: /api/
 Crawl-delay: 0
 
 # 

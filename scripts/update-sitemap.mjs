@@ -171,14 +171,11 @@ try {
   writeFileSync(sitemapPagesPath, sitemap, 'utf-8');
 
   // Update sitemap index with current date
+  // Note: sitemap-news.xml removed (site is not a Google News publisher)
   const sitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>https://www.farrayscenter.com/sitemap-pages.xml</loc>
-    <lastmod>${currentDate}</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://www.farrayscenter.com/sitemap-news.xml</loc>
     <lastmod>${currentDate}</lastmod>
   </sitemap>
   <sitemap>
