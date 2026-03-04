@@ -472,13 +472,45 @@ async function executeSearchClasses(
 
   if (sessions.length === 0) {
     const lang = context.lang || 'es';
+
+    // Include weekly schedule inline to avoid a second tool call (saves ~17s)
+    let weeklySchedule: Record<
+      string,
+      Array<{ time: string; name: string; teacher: string; level: string }>
+    > | null = null;
+    if (style) {
+      const s = style.toLowerCase();
+      const matchingClasses = SCHEDULE_DATA.filter(
+        c => c.styleName.toLowerCase().includes(s) || c.className.toLowerCase().includes(s)
+      );
+      if (matchingClasses.length > 0) {
+        weeklySchedule = {};
+        for (const c of matchingClasses) {
+          const dayKey = c.day;
+          if (!weeklySchedule[dayKey]) weeklySchedule[dayKey] = [];
+          weeklySchedule[dayKey].push({
+            time: c.time,
+            name: c.className,
+            teacher: c.teacher,
+            level: c.level,
+          });
+        }
+      }
+    }
+
     return JSON.stringify({
       found: 0,
       message: style
         ? `No hay clases de ${style}${dayFilter ? ` el ${dayFilter}` : ''}${levelFilter ? ` nivel ${levelFilter}` : ''} disponibles en los próximos ${daysAhead} días.`
         : `No hay clases disponibles en los próximos ${daysAhead} días.`,
-      _instruction:
-        'No se encontraron clases con esos filtros. Si usaste filtros (day/level), prueba sin ellos para ampliar resultados. Si no hay resultados, usa get_weekly_schedule para mostrar el horario fijo general.',
+      ...(weeklySchedule && {
+        weekly_reference: weeklySchedule,
+        _schedule_note:
+          'Este horario semanal es solo referencia. NO tiene enlaces ni IDs. Las reservas online se abren unas semanas antes. NO inventes URLs.',
+      }),
+      _instruction: weeklySchedule
+        ? 'Muestra el horario semanal de referencia incluido arriba. Explica que las reservas se abren mas adelante. NO llames a get_weekly_schedule (ya tienes los datos). Comparte el enlace scheduleUrl para mas info.'
+        : 'No se encontraron clases con esos filtros. Si usaste filtros (day/level), sugiere probar sin ellos. NO llames a get_weekly_schedule.',
       scheduleUrl: `https://www.farrayscenter.com/${lang}/horarios-clases-baile-barcelona`,
     });
   }
