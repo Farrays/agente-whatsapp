@@ -94,7 +94,7 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
         },
         days_ahead: {
           type: 'number',
-          description: 'Número de días a buscar (default: 7, máximo: 45)',
+          description: 'Número de días a buscar (default: 14, máximo: 45)',
         },
       },
       required: [],
@@ -426,7 +426,7 @@ async function executeSearchClasses(
   const style = input['style'] as string | undefined;
   const dayFilter = input['day'] as string | undefined;
   const levelFilter = input['level'] as string | undefined;
-  const daysAhead = Math.min(Number(input['days_ahead']) || 7, 45);
+  const daysAhead = Math.min(Number(input['days_ahead']) || 14, 45);
 
   const rawSessions = await memberService.fetchUpcomingSessions(style, daysAhead);
 

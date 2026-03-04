@@ -786,6 +786,17 @@ export const SCHEDULE_DATA: ScheduleClass[] = [
     link: '/clases/contemporaneo-barcelona',
   },
   {
+    id: 'thu-7b',
+    styleName: 'Commercial Dance',
+    className: 'Commercial Dance Principiantes',
+    day: 'thursday',
+    time: '18:00',
+    teacher: 'Junco Reynier',
+    level: 'beginner',
+    category: 'urbano',
+    link: '/clases/commercial-dance-barcelona',
+  },
+  {
     id: 'thu-8',
     styleName: 'Salsa Cubana',
     className: 'Salsa Cubana Intermedio II',
