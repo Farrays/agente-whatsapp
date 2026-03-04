@@ -392,6 +392,12 @@ export function generateFlexibleFAQSchema(prefix, t) {
       answer = t[`${prefix}_faq${i}_answer`];
     }
 
+    // Pattern E: ${prefix}_${i}_q (used by faq.json categories)
+    if (!question) {
+      question = t[`${prefix}_${i}_q`];
+      answer = t[`${prefix}_${i}_a`];
+    }
+
     if (question && answer) {
       faqs.push({
         '@type': 'Question',
@@ -740,7 +746,7 @@ export function generateBlogFAQSchema(articleData, blogT) {
  * @param {object} options.faqPageMap - FAQ_PAGE_MAP from prerender.mjs
  * @returns {string} HTML string with <script type="application/ld+json"> tags
  */
-export function generateAllJsonLd({ routePath, lang, page, meta, translations, blogTranslations, homeTranslations, scheduleTranslations, styleKeyMap, faqPageMap }) {
+export function generateAllJsonLd({ routePath, lang, page, meta, translations, blogTranslations, homeTranslations, scheduleTranslations, faqJsonTranslations, styleKeyMap, faqPageMap }) {
   const t = translations;
   const schemas = [];
 
@@ -775,11 +781,14 @@ export function generateAllJsonLd({ routePath, lang, page, meta, translations, b
   // 4. Standalone page FAQs (pages not in STYLE_KEY_MAP that have their own FAQ sections)
   const faqEntry = faqPageMap && faqPageMap[page];
   if (faqEntry) {
-    // Select the correct translation namespace
-    const nsMap = { pages: translations, home: homeTranslations, schedule: scheduleTranslations };
-    const faqTranslations = nsMap[faqEntry.ns] || translations;
-    const faqSchema = generateFlexibleFAQSchema(faqEntry.prefix, faqTranslations);
-    if (faqSchema) schemas.push(faqSchema);
+    const nsMap = { pages: translations, home: homeTranslations, schedule: scheduleTranslations, faq: faqJsonTranslations };
+    // Support array of entries (e.g., FAQ page with multiple categories)
+    const entries = Array.isArray(faqEntry) ? faqEntry : [faqEntry];
+    for (const entry of entries) {
+      const faqTranslations = nsMap[entry.ns] || translations;
+      const faqSchema = generateFlexibleFAQSchema(entry.prefix, faqTranslations);
+      if (faqSchema) schemas.push(faqSchema);
+    }
   }
 
   // Generate HTML

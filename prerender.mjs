@@ -492,6 +492,12 @@ const FAQ_PAGE_MAP = {
   horariosClases:          { prefix: 'horariosV2', ns: 'schedule' },
   // Pattern D (pages.json) — ${prefix}_faq${i}_question / ${prefix}_faq${i}_answer
   teamBuilding:            { prefix: 'teamBuilding', ns: 'pages' },
+  // Pattern E (faq.json) — ${prefix}_${i}_q / ${prefix}_${i}_a (multiple categories)
+  faq: [
+    { prefix: 'faq_reservas', ns: 'faq' },
+    { prefix: 'faq_cuenta', ns: 'faq' },
+    { prefix: 'faq_otras', ns: 'faq' },
+  ],
 };
 
 /**
@@ -1984,12 +1990,12 @@ const routes = [
 const metadata = {
   es: {
     home: {
-      title: 'Farray\'s Center - Escuela de Baile Urbano en Barcelona',
-      description: 'Descubre las mejores clases de baile urbano en Barcelona. Dancehall y más. Profesores experimentados y ambiente inclusivo.',
+      title: 'Farray\'s Center - Academia de Danza y Baile en Barcelona',
+      description: 'Academia de baile en Barcelona con +25 estilos: Hip Hop, Ballet, salsa, bachata, y más. Método Farray® exclusivo. CID-UNESCO. ¡Dáte de alta hoy!',
     },
     classes: {
       title: 'Clases de Baile - Farray\'s Center Barcelona',
-      description: 'Dancehall y baile urbano Barcelona todos niveles. Horarios flexibles, profesores expertos. Academia CID-UNESCO. ¡Reserva clase!',
+      description: '+25 estilos de baile en Barcelona: Hip Hop, Ballet, salsa, bachata, contemporáneo y más. Método Farray®. Academia CID-UNESCO. ¡Dáte de alta hoy!',
     },
     classesHub: {
       title: 'Todas las Clases de Baile en Barcelona | Farray\'s Center',
@@ -2005,8 +2011,8 @@ const metadata = {
       description: 'Horarios actualizados de clases de baile en Barcelona. Mañanas, tardes y fines de semana. Salsa, Bachata, Hip Hop, Dancehall y +40 estilos. Plaza España.',
     },
     preciosClases: {
-      title: 'Precios Clases de Baile Barcelona | Bonos y Tarifas | Farray\'s Center',
-      description: 'Precios y tarifas de clases de baile en Barcelona. Bonos mensuales desde 45€, clases sueltas y packs. Primera clase de prueba. Farray\'s Center Plaza España.',
+      title: 'Precios Clases de Baile Barcelona | Farray\'s Center',
+      description: 'Precios clases de baile en Barcelona. Bonos mensuales desde 45€, clases sueltas y packs. Primera clase de prueba. Plaza España. ¡Dáte de alta!',
     },
     danza: {
       title: 'Clases de Danza en Barcelona | Ballet, Contemporáneo y Jazz | Farray\'s Center',
@@ -2017,27 +2023,27 @@ const metadata = {
       description: 'Aprende Salsa Cubana y Bachata Sensual en Barcelona con maestros cubanos. Escuela CID-UNESCO con método exclusivo. ¡Reserva tu clase de prueba!',
     },
     bachataSensual: {
-      title: 'Clases de Bachata Sensual en Barcelona | Aprende con Campeones Mundiales | Farray\'s Center',
+      title: 'Clases de Bachata en Barcelona | Farray\'s Center',
       description: 'Bachata sensual Barcelona con Mathias Font y Eugenia Trujillo, campeones mundiales Salsa LA. Principiante a avanzado. Plaza España.',
     },
     salsaCubana: {
-      title: 'Clases de Salsa Cubana en Barcelona | Casino, Rueda y Son | Farray\'s Center',
+      title: 'Clases de Salsa Cubana en Barcelona | Farray\'s Center',
       description: 'Salsa Cubana auténtica en Barcelona con maestros cubanos. Casino, Rueda y Son. Método Farray® técnica La Habana. ¡Reserva clase!',
     },
     salsaLadyStyle: {
-      title: 'Clases de Salsa Lady Style en Barcelona | Estilo Femenino y Elegancia | Farray\'s Center',
+      title: 'Clases de Salsa Lady Style en Barcelona | Estilo Femenino | Farray\'s Center',
       description: 'Salsa Lady Style en Barcelona con Yunaisy Farray. Feminidad, elegancia y estilo bailando salsa. Método Farray® CID-UNESCO. ¡Reserva clase!',
     },
     folkloreCubano: {
-      title: 'Clases de Folklore Cubano en Barcelona | Danzas a los Orishas | Farray\'s Center',
-      description: 'Folklore Cubano auténtico en Barcelona: danzas Orishas, Yoruba, Rumba y más. Maestros cubanos especializados. Academia CID-UNESCO cerca Plaza España. ¡Reserva!',
+      title: 'Clases de Folklore Cubano en Barcelona | Farray\'s Center',
+      description: 'Folklore Cubano auténtico en Barcelona: danzas Orishas, Yoruba, Rumba y más. Maestros cubanos especializados. CID-UNESCO. ¡Reserva clase!',
     },
     timba: {
       title: 'Clases de Timba en Barcelona | Lady Timba y Timba en Pareja | Farray\'s Center',
       description: 'Timba Cubana en Barcelona con maestros cubanos. Lady Timba y Timba en Pareja. Despelote, improvisación y sabor cubano. ¡Reserva clase!',
     },
     danzasUrbanas: {
-      title: 'Clases de Danzas Urbanas en Barcelona | Hip Hop, Dancehall, K-Pop y Reggaeton | Farray\'s Center',
+      title: 'Clases de Danzas Urbanas en Barcelona | Farray\'s Center',
       description: 'Danzas urbanas en Barcelona: Hip Hop, Dancehall, Reggaeton, Twerk, Afrobeat. Academia líder en estilos urbanos. ¡¡Reserva tu clase!',
     },
     dancehall: {
@@ -2089,12 +2095,12 @@ const metadata = {
       description: 'Sexy Style en Barcelona. Expresa sensualidad, confianza y movimiento. Todos los niveles. Academia CID-UNESCO. ¡Reserva tu clase!',
     },
     modernJazz: {
-      title: 'Clases de Modern Jazz en Barcelona | Técnica y Expresión con Alejandro Miñoso | Farray\'s Center',
+      title: 'Clases de Modern Jazz en Barcelona | Farray\'s Center',
       description: 'Modern Jazz Barcelona con Alejandro Miñoso. Técnica, musicalidad, expresión. Principiante a avanzado. Academia CID-UNESCO. ¡Reserva clase!',
     },
     ballet: {
-      title: 'Clases de Ballet en Barcelona | Técnica Clásica y Elegancia | Farray\'s Center',
-      description: 'Ballet clásico en Barcelona para adultos. Técnica, postura y elegancia con maestros formados en ENA. Academia acreditada CID-UNESCO. Plaza España. ¡Reserva!',
+      title: 'Clases de Ballet en Barcelona | Farray\'s Center',
+      description: 'Ballet clásico en Barcelona para adultos. Técnica, postura y elegancia con maestros formados en ENA. Academia CID-UNESCO. Plaza España. ¡Reserva!',
     },
     cuerpoFit: {
       title: 'Cuerpo-Fit Barcelona | Cardio Dance | Farray\'s Center',
@@ -2253,7 +2259,7 @@ const metadata = {
     },
     blogDanzaContemporaneaVsJazzBallet: {
       title: 'Contemporánea vs Jazz vs Ballet: Guía 2025 | Farray\'s Center',
-      description: 'Descubre las diferencias entre danza contemporánea, modern jazz y ballet clásico. Comparativa técnica, beneficios y cómo elegir el estilo que mejor se adapta a ti.',
+      description: 'Diferencias entre danza contemporánea, modern jazz y ballet clásico. Comparativa técnica, beneficios y cómo elegir el estilo que se adapta a ti.',
     },
     blogDanzasUrbanas: {
       title: 'Danzas Urbanas Barcelona: Guía Completa Hip-Hop 2026 | Farray\'s',
@@ -2287,35 +2293,35 @@ const metadata = {
     },
     // New class pages
     afroContemporaneo: {
-      title: 'Clases de Afro Contemporáneo en Barcelona | Fusión de Danza Africana y Contemporánea | Farray\'s Center',
+      title: 'Clases de Afro Contemporáneo en Barcelona | Farray\'s Center',
       description: 'Afro Contemporáneo en Barcelona: fusión de danza africana con técnica contemporánea. Todos niveles. Academia CID-UNESCO. ¡Reserva clase!',
     },
     afroJazz: {
       title: 'Clases de Afro Jazz en Barcelona | Ritmo Africano y Técnica de Jazz | Farray\'s Center',
-      description: 'Clases de Afro Jazz en Barcelona: combina ritmos africanos con técnica de jazz moderno. Expresión corporal, musicalidad y energía. Todos los niveles. ¡Reserva!',
+      description: 'Afro Jazz en Barcelona: ritmos africanos con técnica de jazz moderno. Expresión corporal, musicalidad y energía. Todos niveles. ¡Reserva clase!',
     },
     contemporaneo: {
-      title: 'Clases de Danza Contemporánea en Barcelona | Técnica y Expresión | Farray\'s Center',
-      description: 'Clases de danza contemporánea en Barcelona para adultos. Desarrolla técnica, expresión corporal y creatividad. Academia CID-UNESCO. ¡Reserva tu clase de prueba!',
+      title: 'Clases de Danza Contemporánea en Barcelona | Farray\'s Center',
+      description: 'Danza contemporánea en Barcelona para adultos. Técnica, expresión corporal y creatividad. Academia CID-UNESCO. ¡Reserva tu clase de prueba!',
     },
     stretching: {
-      title: 'Clases de Stretching para Bailarines en Barcelona | Flexibilidad y Movilidad | Farray\'s Center',
+      title: 'Clases de Stretching en Barcelona | Flexibilidad y Movilidad | Farray\'s Center',
       description: 'Stretching para bailarines Barcelona. Mejora flexibilidad, movilidad y previene lesiones. Complemento perfecto cualquier estilo baile.',
     },
     hipHop: {
-      title: 'Clases de Hip Hop en Barcelona | Aprende con Profesionales | Farray\'s Center',
-      description: 'Aprende Hip Hop en Barcelona con profesores expertos. Clases desde principiante hasta avanzado. Estilos: Old School, New Style, House y más. ¡¡Reserva tu clase!',
+      title: 'Clases de Hip Hop en Barcelona | Farray\'s Center',
+      description: 'Hip Hop en Barcelona con profesores expertos. Principiante a avanzado. Old School, New Style, House y más. CID-UNESCO. ¡Reserva clase!',
     },
     entrenamientoBailarines: {
-      title: 'Entrenamiento para Bailarines en Barcelona | Técnica y Condición Física | Farray\'s Center',
+      title: 'Entrenamiento para Bailarines en Barcelona | Farray\'s Center',
       description: 'Entrenamiento bailarines Barcelona. Mejora técnica, fuerza, resistencia y flexibilidad. Programa diseñado por profesionales danza CID-UNESCO.',
     },
     bachataLadyStyle: {
-      title: 'Clases de Bachata Lady Style en Barcelona | Estilo Femenino y Sensualidad | Farray\'s Center',
+      title: 'Clases de Bachata Lady Style en Barcelona | Estilo Femenino | Farray\'s Center',
       description: 'Bachata Lady Style Barcelona. Feminidad, elegancia y estilo personal bailando bachata. Movimientos sensuales y expresivos. ¡Reserva clase!',
     },
     bumBum: {
-      title: 'Bum Bum - Ejercicios de Glúteos en Barcelona | Tonificación y Fitness | Farray\'s Center',
+      title: 'Bum Bum - Ejercicios de Glúteos en Barcelona | Farray\'s Center',
       description: 'Clases de Bum Bum en Barcelona: ejercicios especializados para glúteos y piernas. Tonifica, fortalece y moldea con música y energía. ¡¡Reserva tu clase!',
     },
     cuerpoFitPage: {
@@ -2332,11 +2338,11 @@ const metadata = {
       description: 'Resuelve tus dudas sobre nuestras clases de baile en Barcelona. Horarios, precios, niveles, inscripción y todo lo que necesitas saber antes de empezar.',
     },
     alquilerSalas: {
-      title: 'Alquiler de Salas de Baile en Barcelona | 4 Espacios Profesionales | Farray\'s Center',
+      title: 'Alquiler de Salas de Baile en Barcelona | Farray\'s Center',
       description: 'Alquiler 4 salas baile Barcelona (40-120m²). Suelo danza, espejos, climatización, sonido. Desde 14€/h. Plaza España. CID-UNESCO.',
     },
     estudioGrabacion: {
-      title: 'Estudio de Grabación de Baile en Barcelona | Producción Audiovisual | Farray\'s Center',
+      title: 'Estudio de Grabación de Baile en Barcelona | Farray\'s Center',
       description: 'Estudio grabación videos baile Barcelona. Equipamiento profesional, iluminación y sonido. Perfecto videoclips, tutoriales y redes sociales.',
     },
     // Legal pages
@@ -2379,12 +2385,12 @@ const metadata = {
   },
   ca: {
     home: {
-      title: 'Farray\'s Center - Escola de Ball Urbà a Barcelona',
-      description: 'Millors classes ball urbà Barcelona: Dancehall, Hip Hop, Reggaeton. Professors experimentats, ambient inclusiu. Acadèmia CID-UNESCO. Reserva!',
+      title: 'Farray\'s Center - Acadèmia de Dansa i Ball a Barcelona',
+      description: 'Acadèmia de ball a Barcelona amb +25 estils: Hip Hop, Ballet, salsa, bachata, i més. Mètode Farray® exclusiu. CID-UNESCO. Dona\'t d\'alta avui!',
     },
     classes: {
       title: 'Classes de Ball - Farray\'s Center Barcelona',
-      description: 'Classes de Dancehall i ball urbà Tots nivells. Horaris flexibles a Barcelona.',
+      description: '+25 estils de ball a Barcelona: Hip Hop, Ballet, salsa, bachata, contemporani i més. Mètode Farray®. Acadèmia CID-UNESCO. Dona\'t d\'alta avui!',
     },
     classesHub: {
       title: 'Totes les Classes de Ball a Barcelona | Farray\'s Center',
@@ -2400,8 +2406,8 @@ const metadata = {
       description: 'Horaris actualitzats de classes de ball a Barcelona. Matins, tardes i caps de setmana. Salsa, Bachata, Hip Hop, Dancehall i +40 estils. Plaça Espanya.',
     },
     preciosClases: {
-      title: 'Preus Classes de Ball Barcelona | Bonos i Tarifes | Farray\'s Center',
-      description: 'Preus i tarifes de classes de ball a Barcelona. Bonos mensuals des de 45€, classes soltes i packs. Primera classe de prova. Farray\'s Center Plaça Espanya.',
+      title: 'Preus Classes de Ball Barcelona | Farray\'s Center',
+      description: 'Preus classes de ball a Barcelona. Bonos mensuals des de 45€, classes soltes i packs. Primera classe de prova. Plaça Espanya. Dona\'t d\'alta!',
     },
     danza: {
       title: 'Classes de Dansa a Barcelona | Ballet, Contemporani i Jazz | Farray\'s Center',
@@ -2412,27 +2418,27 @@ const metadata = {
       description: 'Aprèn Salsa Cubana i Bachata Sensual a Barcelona amb mestres cubans. Escola CID-UNESCO amb mètode exclusiu. Reserva la teva classe de prova!',
     },
     bachataSensual: {
-      title: 'Classes de Bachata Sensual a Barcelona | Aprèn amb Campions Mundials | Farray\'s Center',
+      title: 'Classes de Bachata a Barcelona | Farray\'s Center',
       description: 'Bachata sensual Barcelona amb Mathias Font i Eugenia Trujillo, campions mundials Salsa LA. Principiant a avançat. Plaça Espanya.',
     },
     salsaCubana: {
-      title: 'Classes de Salsa Cubana a Barcelona | Casino, Rueda i Son | Farray\'s Center',
+      title: 'Classes de Salsa Cubana a Barcelona | Farray\'s Center',
       description: 'Aprèn Salsa Cubana autèntica a Barcelona amb mestres cubans. Classes de Casino, Rueda de Casino i Son Cubà. Mètode Farray® amb tècnica de L\'Havana. Reserva la teva classe de prova!',
     },
     salsaLadyStyle: {
-      title: 'Classes de Salsa Lady Style a Barcelona | Estil Femení i Elegància | Farray\'s Center',
+      title: 'Classes de Salsa Lady Style a Barcelona | Estil Femení | Farray\'s Center',
       description: 'Classes de Salsa Lady Style a Barcelona amb Yunaisy Farray. Feminitat, elegància i estil ballant salsa. Mètode Farray® CID-UNESCO. Reserva la teva classe!',
     },
     folkloreCubano: {
-      title: 'Classes de Folklore Cubà a Barcelona | Danses als Orixàs | Farray\'s Center',
-      description: 'Aprèn Folklore Cubà autèntic a Barcelona. Danses als Orixàs, Yoruba, Rumba i més. Mestres cubans especialitzats. Entre Plaça Espanya i Sants. Reserva!',
+      title: 'Classes de Folklore Cubà a Barcelona | Farray\'s Center',
+      description: 'Folklore Cubà autèntic a Barcelona: danses Orixàs, Yoruba, Rumba i més. Mestres cubans especialitzats. CID-UNESCO. Reserva classe!',
     },
     timba: {
       title: 'Classes de Timba a Barcelona | Lady Timba i Timba en Parella | Farray\'s Center',
       description: 'Timba Cubana Barcelona amb mestres cubans. Lady Timba i Timba en Parella. Despelote, improvisació, sabor cubà. Reserva classe!',
     },
     danzasUrbanas: {
-      title: 'Classes de Danses Urbanes a Barcelona | Hip Hop, Dancehall, K-Pop i Reggaeton | Farray\'s Center',
+      title: 'Classes de Danses Urbanes a Barcelona | Farray\'s Center',
       description: 'Danses urbanes Barcelona: Hip Hop, Dancehall, Reggaeton, Twerk, Afrobeat. Acadèmia líder en estils urbans. CID-UNESCO. Reserva classe!',
     },
     dancehall: {
@@ -2484,12 +2490,12 @@ const metadata = {
       description: 'Sexy Style a Barcelona. Expressa sensualitat, confiança i moviment. Tots els nivells. Acadèmia CID-UNESCO. Reserva la teva classe!',
     },
     modernJazz: {
-      title: 'Classes de Modern Jazz a Barcelona | Tècnica i Expressió amb Alejandro Miñoso | Farray\'s Center',
+      title: 'Classes de Modern Jazz a Barcelona | Farray\'s Center',
       description: 'Modern Jazz Barcelona amb Alejandro Miñoso. Tècnica, musicalitat i expressió. Principiant a avançat. Acadèmia CID-UNESCO. Reserva classe!',
     },
     ballet: {
-      title: 'Classes de Ballet a Barcelona | Tècnica Clàssica i Elegància | Farray\'s Center',
-      description: "Classes de ballet clàssic a Barcelona per a adults. Aprèn tècnica, postura i elegància amb mestres formats a l'ENA. Acadèmia CID-UNESCO entre Plaça Espanya i Sants.",
+      title: 'Classes de Ballet a Barcelona | Farray\'s Center',
+      description: 'Ballet clàssic a Barcelona per a adults. Tècnica, postura i elegància amb mestres formats a l\'ENA. Acadèmia CID-UNESCO. Plaça Espanya. Reserva!',
     },
     cuerpoFit: {
       title: 'Cuerpo-Fit Barcelona | Classes de Cardio Dance | Farray\'s Center',
@@ -2648,7 +2654,7 @@ const metadata = {
     },
     blogDanzaContemporaneaVsJazzBallet: {
       title: 'Contemporània vs Jazz vs Ballet: Guia 2025 | Farray\'s Center',
-      description: 'Descobreix les diferències entre dansa contemporània, modern jazz i ballet clàssic. Comparativa tècnica, beneficis i com triar l\'estil que millor s\'adapta a tu.',
+      description: 'Diferències entre dansa contemporània, modern jazz i ballet clàssic. Comparativa tècnica, beneficis i com triar l\'estil que s\'adapta a tu.',
     },
     blogDanzasUrbanas: {
       title: 'Danses Urbanes Barcelona: Guia Completa Hip-Hop 2026 | Farray\'s',
@@ -2682,7 +2688,7 @@ const metadata = {
     },
     // New class pages
     afroContemporaneo: {
-      title: 'Classes d\'Afro Contemporani a Barcelona | Fusió de Dansa Africana i Contemporània | Farray\'s Center',
+      title: 'Classes d\'Afro Contemporani a Barcelona | Farray\'s Center',
       description: 'Afro Contemporani Barcelona: fusió dansa africana amb tècnica contemporània. Tots nivells. Acadèmia CID-UNESCO.',
     },
     afroJazz: {
@@ -2690,27 +2696,27 @@ const metadata = {
       description: 'Afro Jazz Barcelona: ritmes africans i tècnica jazz modern. Expressió corporal, musicalitat i energia. Tots nivells. CID-UNESCO. Reserva!',
     },
     contemporaneo: {
-      title: 'Classes de Dansa Contemporània a Barcelona | Tècnica i Expressió | Farray\'s Center',
+      title: 'Classes de Dansa Contemporània a Barcelona | Farray\'s Center',
       description: 'Dansa contemporània Barcelona adults. Tècnica, expressió i creativitat. Acadèmia CID-UNESCO. Reserva classe!',
     },
     stretching: {
-      title: 'Classes d\'Stretching per a Ballarins a Barcelona | Flexibilitat i Mobilitat | Farray\'s Center',
+      title: 'Classes d\'Stretching a Barcelona | Flexibilitat i Mobilitat | Farray\'s Center',
       description: 'Classes d\'stretching especialitzades per a ballarins a Barcelona. Millora la teva flexibilitat, mobilitat i preveu lesions. Complement perfecte per a qualsevol estil de ball.',
     },
     hipHop: {
-      title: 'Classes de Hip Hop a Barcelona | Aprèn amb Professionals | Farray\'s Center',
-      description: 'Aprèn Hip Hop a Barcelona amb professors experts. Classes des de principiant fins a avançat. Estils: Old School, New Style, House i més. Reserva classe!',
+      title: 'Classes de Hip Hop a Barcelona | Farray\'s Center',
+      description: 'Hip Hop a Barcelona amb professors experts. Principiant a avançat. Old School, New Style, House i més. CID-UNESCO. Reserva classe!',
     },
     entrenamientoBailarines: {
-      title: 'Entrenament per a Ballarins a Barcelona | Tècnica i Condició Física | Farray\'s Center',
+      title: 'Entrenament per a Ballarins a Barcelona | Farray\'s Center',
       description: 'Entrenament ballarins Barcelona. Millora tècnica, força, resistència i flexibilitat. Programa dissenyat per professionals dansa CID-UNESCO.',
     },
     bachataLadyStyle: {
-      title: 'Classes de Bachata Lady Style a Barcelona | Estil Femení i Sensualitat | Farray\'s Center',
+      title: 'Classes de Bachata Lady Style a Barcelona | Estil Femení | Farray\'s Center',
       description: 'Bachata Lady Style Barcelona. Feminitat, elegància i estil personal ballant bachata. Moviments sensuels i expressius. Reserva classe!',
     },
     bumBum: {
-      title: 'Bum Bum - Exercicis de Glutis a Barcelona | Tonificació i Fitness | Farray\'s Center',
+      title: 'Bum Bum - Exercicis de Glutis a Barcelona | Farray\'s Center',
       description: 'Classes de Bum Bum a Barcelona: exercicis especialitzats per a glutis i cames. Tonifica, enforteix i modela amb música i energia. Reserva classe!',
     },
     cuerpoFitPage: {
@@ -2727,11 +2733,11 @@ const metadata = {
       description: 'Resol els teus dubtes sobre les nostres classes de ball a Barcelona. Horaris, preus, nivells, inscripció i tot el que necessites saber abans de començar.',
     },
     alquilerSalas: {
-      title: 'Lloguer de Sales de Ball a Barcelona | 4 Espais Professionals | Farray\'s Center',
+      title: 'Lloguer de Sales de Ball a Barcelona | Farray\'s Center',
       description: 'Lloga les nostres 4 sales de ball professionals a Barcelona (40-120m²). Sòl de dansa, miralls, climatització i so. Des de 14€/hora. Entre Plaça Espanya i Sants.',
     },
     estudioGrabacion: {
-      title: 'Estudi de Gravació de Ball a Barcelona | Producció Audiovisual | Farray\'s Center',
+      title: 'Estudi de Gravació de Ball a Barcelona | Farray\'s Center',
       description: 'Estudi de gravació per a vídeos de ball a Barcelona. Equipament professional, il·luminació i so. Perfecte per a videoclips, tutorials i contingut per a xarxes.',
     },
     // Legal pages
@@ -2774,12 +2780,12 @@ const metadata = {
   },
   en: {
     home: {
-      title: 'Farray\'s Center - Urban Dance School in Barcelona',
-      description: 'Discover the best urban dance classes in Barcelona. Dancehall and more. Experienced teachers and inclusive atmosphere.',
+      title: 'Farray\'s Center - Dance Academy in Barcelona',
+      description: 'Dance academy in Barcelona with +25 styles: Hip Hop, Ballet, salsa, bachata, and more. Exclusive Farray Method®. CID-UNESCO. Sign up today!',
     },
     classes: {
       title: 'Dance Classes - Farray\'s Center Barcelona',
-      description: 'Dancehall and urban dance classes All levels. Flexible schedules in Barcelona.',
+      description: '+25 dance styles in Barcelona: Hip Hop, Ballet, salsa, bachata, contemporary and more. Farray Method®. CID-UNESCO Academy. Sign up today!',
     },
     classesHub: {
       title: 'All Dance Classes in Barcelona | Farray\'s Center',
@@ -2795,8 +2801,8 @@ const metadata = {
       description: 'Updated dance class schedules in Barcelona. Mornings, evenings and weekends. Salsa, Bachata, Hip Hop, Dancehall and +40 styles. Plaza España.',
     },
     preciosClases: {
-      title: 'Dance Class Prices Barcelona | Passes & Rates | Farray\'s Center',
-      description: 'Dance class prices and rates in Barcelona. Monthly passes from €45, single classes and packs. First trial class available. Farray\'s Center Plaza España.',
+      title: 'Dance Class Prices Barcelona | Farray\'s Center',
+      description: 'Dance class prices in Barcelona. Monthly passes from €45, single classes and packs. First trial class available. Plaza España. Sign up today!',
     },
     danza: {
       title: 'Dance Classes in Barcelona | Ballet, Contemporary & Jazz | Farray\'s Center',
@@ -2807,27 +2813,27 @@ const metadata = {
       description: 'Learn to dance Cuban Salsa, Sensual and Dominican Bachata, Timba, Son and more in Barcelona. School founded by Cuban masters with experience in Havana\'s best academies. Book your trial class.',
     },
     bachataSensual: {
-      title: 'Sensual Bachata Classes in Barcelona | Learn with World Champions | Farray\'s Center',
+      title: 'Bachata Classes in Barcelona | Farray\'s Center',
       description: 'Learn sensual bachata in Barcelona with Mathias Font and Eugenia Trujillo, world champions in Salsa LA. Classes from beginner to advanced near Plaza España.',
     },
     salsaCubana: {
-      title: 'Cuban Salsa Classes in Barcelona | Casino, Rueda & Son | Farray\'s Center',
+      title: 'Cuban Salsa Classes in Barcelona | Farray\'s Center',
       description: 'Cuban Salsa Barcelona with Cuban masters. Casino, Rueda and Son Cubano. Farray Method® Havana technique. CID-UNESCO. Book your class!',
     },
     salsaLadyStyle: {
-      title: 'Salsa Lady Style Classes in Barcelona | Feminine Style & Elegance | Farray\'s Center',
+      title: 'Salsa Lady Style Classes in Barcelona | Feminine Style | Farray\'s Center',
       description: 'Salsa Lady Style Barcelona with Yunaisy Farray. Femininity, elegance & style dancing salsa. Farray Method® CID-UNESCO.',
     },
     folkloreCubano: {
-      title: 'Cuban Folklore Classes in Barcelona | Dances to the Orishas | Farray\'s Center',
-      description: 'Learn authentic Cuban Folklore in Barcelona. Dances to the Orishas, Yoruba, Rumba and more. Specialized Cuban masters. Between Plaza España and Sants. Book now!',
+      title: 'Cuban Folklore Classes in Barcelona | Farray\'s Center',
+      description: 'Authentic Cuban Folklore in Barcelona: Orishas dances, Yoruba, Rumba and more. Specialized Cuban masters. CID-UNESCO. Book your class!',
     },
     timba: {
       title: 'Timba Classes in Barcelona | Lady Timba & Partner Timba | Farray\'s Center',
       description: 'Cuban Timba Barcelona with Cuban masters. Lady Timba & Partner Timba. Despelote, improvisation & Cuban flavor. Book!',
     },
     danzasUrbanas: {
-      title: 'Urban Dance Classes in Barcelona | Hip Hop, Dancehall, K-Pop & Reggaeton | Farray\'s Center',
+      title: 'Urban Dance Classes in Barcelona | Farray\'s Center',
       description: 'Urban dance Barcelona: Hip Hop, Dancehall, Reggaeton, Twerk, Afrobeat. Leading academy for urban styles. CID-UNESCO. Book your class!',
     },
     dancehall: {
@@ -2879,11 +2885,11 @@ const metadata = {
       description: 'Sexy Style in Barcelona. Express sensuality, confidence and movement. All levels. CID-UNESCO Academy. Book your class!',
     },
     modernJazz: {
-      title: 'Modern Jazz Classes in Barcelona | Technique and Expression with Alejandro Miñoso | Farray\'s Center',
+      title: 'Modern Jazz Classes in Barcelona | Farray\'s Center',
       description: 'Modern Jazz classes in Barcelona with Alejandro Miñoso. Technique, musicality and body expression. From beginner to advanced. Book your trial class!',
     },
     ballet: {
-      title: 'Ballet Classes in Barcelona | Classical Technique and Elegance | Farray\'s Center',
+      title: 'Ballet Classes in Barcelona | Farray\'s Center',
       description: 'Classical ballet Barcelona for adults. Technique, posture and elegance with ENA-trained masters. CID-UNESCO Academy. Plaza España. Book!',
     },
     cuerpoFit: {
@@ -3043,7 +3049,7 @@ const metadata = {
     },
     blogDanzaContemporaneaVsJazzBallet: {
       title: 'Contemporary vs Jazz vs Ballet: 2025 Guide | Farray\'s Center',
-      description: 'Discover the differences between contemporary dance, modern jazz and classical ballet. Technical comparison, benefits and how to choose the style that suits you best.',
+      description: 'Differences between contemporary dance, modern jazz and classical ballet. Technical comparison, benefits and how to choose the right style for you.',
     },
     blogDanzasUrbanas: {
       title: 'Urban Dance Barcelona: Complete Hip-Hop Guide 2026 | Farray\'s',
@@ -3077,7 +3083,7 @@ const metadata = {
     },
     // New class pages
     afroContemporaneo: {
-      title: 'Afro Contemporary Classes in Barcelona | African & Contemporary Dance Fusion | Farray\'s Center',
+      title: 'Afro Contemporary Classes in Barcelona | Farray\'s Center',
       description: 'Learn Afro Contemporary in Barcelona: fusion of traditional African dance with contemporary technique. Classes All levels. CID-UNESCO Academy. Book your class!',
     },
     afroJazz: {
@@ -3085,27 +3091,27 @@ const metadata = {
       description: 'Afro Jazz classes in Barcelona: combining African rhythms with modern jazz technique. Body expression, musicality and energy. All levels. Book now!',
     },
     contemporaneo: {
-      title: 'Contemporary Dance Classes in Barcelona | Technique & Expression | Farray\'s Center',
-      description: 'Contemporary dance classes in Barcelona for adults. Develop technique, body expression and creativity. CID-UNESCO accredited academy. Book your trial class!',
+      title: 'Contemporary Dance Classes in Barcelona | Farray\'s Center',
+      description: 'Contemporary dance in Barcelona for adults. Technique, body expression and creativity. CID-UNESCO Academy. Book your trial class!',
     },
     stretching: {
-      title: 'Stretching Classes for Dancers in Barcelona | Flexibility & Mobility | Farray\'s Center',
+      title: 'Stretching Classes in Barcelona | Flexibility & Mobility | Farray\'s Center',
       description: 'Specialized stretching classes for dancers in Barcelona. Improve your flexibility, mobility and prevent injuries. Perfect complement for any dance style.',
     },
     hipHop: {
-      title: 'Hip Hop Classes in Barcelona | Learn with Professionals | Farray\'s Center',
+      title: 'Hip Hop Classes in Barcelona | Farray\'s Center',
       description: 'Learn Hip Hop in Barcelona with expert teachers. Classes from beginner to advanced. Styles: Old School, New Style, House and more. Book class!',
     },
     entrenamientoBailarines: {
-      title: 'Training for Dancers in Barcelona | Technique & Fitness | Farray\'s Center',
+      title: 'Training for Dancers in Barcelona | Farray\'s Center',
       description: 'Specialized training for dancers in Barcelona. Improve your technique, strength, endurance and flexibility. Program designed by dance professionals.',
     },
     bachataLadyStyle: {
-      title: 'Bachata Lady Style Classes in Barcelona | Feminine Style & Sensuality | Farray\'s Center',
+      title: 'Bachata Lady Style Classes in Barcelona | Feminine Style | Farray\'s Center',
       description: 'Bachata Lady Style Barcelona. Femininity, elegance & personal style dancing bachata. Sensual and expressive movements. Book your class!',
     },
     bumBum: {
-      title: 'Bum Bum - Glute Exercises in Barcelona | Toning & Fitness | Farray\'s Center',
+      title: 'Bum Bum - Glute Exercises in Barcelona | Farray\'s Center',
       description: 'Bum Bum classes in Barcelona: specialized exercises for glutes and legs. Tone, strengthen and sculpt with music and energy. Book class!',
     },
     cuerpoFitPage: {
@@ -3122,11 +3128,11 @@ const metadata = {
       description: 'Get answers about our dance classes in Barcelona. Schedules, prices, levels, registration and everything you need to know before starting.',
     },
     alquilerSalas: {
-      title: 'Dance Studio Rental in Barcelona | 4 Professional Spaces | Farray\'s Center',
+      title: 'Dance Studio Rental in Barcelona | Farray\'s Center',
       description: 'Rent our 4 professional dance studios in Barcelona (40-120m²). Dance floor, mirrors, AC and sound. From €14/hour. Between Plaza España and Sants.',
     },
     estudioGrabacion: {
-      title: 'Dance Video Studio in Barcelona | Audiovisual Production | Farray\'s Center',
+      title: 'Dance Video Studio in Barcelona | Farray\'s Center',
       description: 'Recording studio for dance videos in Barcelona. Professional equipment, lighting and sound. Perfect for music videos, tutorials and social media content.',
     },
     // Legal pages
@@ -3169,12 +3175,12 @@ const metadata = {
   },
   fr: {
     home: {
-      title: 'Farray\'s Center - École de Danse Urbaine à Barcelone',
-      description: 'Meilleurs cours danse urbaine Barcelone : Dancehall, Hip Hop, Reggaeton. Professeurs expérimentés, ambiance inclusive. Académie CID-UNESCO. Réservez!',
+      title: 'Farray\'s Center - Académie de Danse à Barcelone',
+      description: 'Académie de danse à Barcelone avec +25 styles : Hip Hop, Ballet, salsa, bachata, et plus. Méthode Farray® exclusive. CID-UNESCO. Inscrivez-vous !',
     },
     classes: {
       title: 'Cours de Danse - Farray\'s Center Barcelone',
-      description: 'Cours de Dancehall et danse urbaine Tous niveaux. Horaires flexibles à Barcelone.',
+      description: '+25 styles de danse à Barcelone : Hip Hop, Ballet, salsa, bachata, contemporain et plus. Méthode Farray®. Académie CID-UNESCO. Inscrivez-vous !',
     },
     classesHub: {
       title: 'Tous les Cours de Danse à Barcelone | Farray\'s Center',
@@ -3190,8 +3196,8 @@ const metadata = {
       description: 'Horaires actualisés des cours de danse à Barcelone. Matins, après-midis et week-ends. Salsa, Bachata, Hip Hop, Dancehall et +40 styles. Plaza España.',
     },
     preciosClases: {
-      title: 'Tarifs Cours de Danse Barcelone | Abonnements et Prix | Farray\'s Center',
-      description: 'Tarifs et prix des cours de danse à Barcelone. Abonnements mensuels dès 45€, cours à l\'unité et packs. Premier cours d\'essai. Farray\'s Center Plaza España.',
+      title: 'Tarifs Cours de Danse Barcelone | Farray\'s Center',
+      description: 'Tarifs cours de danse à Barcelone. Abonnements mensuels dès 45€, cours à l\'unité et packs. Premier cours d\'essai. Plaza España. Inscrivez-vous !',
     },
     danza: {
       title: 'Cours de Danse à Barcelone | Ballet, Contemporain et Jazz | Farray\'s Center',
@@ -3202,19 +3208,19 @@ const metadata = {
       description: 'Apprenez la Salsa Cubaine et Bachata Sensuelle à Barcelone avec maîtres cubains. École CID-UNESCO avec méthode exclusive. Réservez votre cours d\'essai!',
     },
     bachataSensual: {
-      title: 'Cours de Bachata Sensuelle à Barcelone | Apprenez avec des Champions du Monde | Farray\'s Center',
+      title: 'Cours de Bachata à Barcelone | Farray\'s Center',
       description: 'Apprenez la bachata sensuelle à Barcelone avec Mathias Font et Eugenia Trujillo, champions du monde de Salsa LA. Cours du débutant à l\'avancé près Plaza España.',
     },
     salsaCubana: {
-      title: 'Cours de Salsa Cubaine à Barcelone | Casino, Rueda et Son | Farray\'s Center',
+      title: 'Cours de Salsa Cubaine à Barcelone | Farray\'s Center',
       description: 'Salsa Cubaine authentique à Barcelone avec maîtres cubains. Casino, Rueda et Son Cubain. Méthode Farray® technique La Havane. Réservez cours!\'essai!',
     },
     salsaLadyStyle: {
-      title: 'Cours de Salsa Lady Style à Barcelone | Style Féminin et Élégance | Farray\'s Center',
+      title: 'Cours de Salsa Lady Style à Barcelone | Style Féminin | Farray\'s Center',
       description: 'Cours de Salsa Lady Style à Barcelone avec Yunaisy Farray. Féminité, élégance et style en dansant la salsa. Méthode Farray® CID-UNESCO. Réservez!',
     },
     folkloreCubano: {
-      title: 'Cours de Folklore Cubain à Barcelone | Danses aux Orishas | Farray\'s Center',
+      title: 'Cours de Folklore Cubain à Barcelone | Farray\'s Center',
       description: 'Folklore Cubain authentique Barcelone. Danses Orishas, Yoruba, Rumba. Maîtres cubains spécialisés. Plaza España. CID-UNESCO. Réservez!',
     },
     timba: {
@@ -3222,7 +3228,7 @@ const metadata = {
       description: 'Apprenez la Timba Cubaine à Barcelone avec maîtres cubains. Lady Timba et Timba en Couple. Despelote, improvisation et saveur cubaine. Réservez!',
     },
     danzasUrbanas: {
-      title: 'Cours de Danses Urbaines à Barcelone | Hip Hop, Dancehall, K-Pop et Reggaeton | Farray\'s Center',
+      title: 'Cours de Danses Urbaines à Barcelone | Farray\'s Center',
       description: 'Danses urbaines Barcelone: Hip Hop, Dancehall, Reggaeton, Twerk, Afrobeat. Académie leader. Réservez cours!',
     },
     dancehall: {
@@ -3274,12 +3280,12 @@ const metadata = {
       description: 'Sexy Style à Barcelone. Exprimez sensualité, confiance et mouvement. Tous niveaux. Académie CID-UNESCO. Réservez votre cours!',
     },
     modernJazz: {
-      title: 'Cours de Modern Jazz à Barcelone | Technique et Expression avec Alejandro Miñoso | Farray\'s Center',
+      title: 'Cours de Modern Jazz à Barcelone | Farray\'s Center',
       description: 'Cours de Modern Jazz à Barcelone avec Alejandro Miñoso. Technique, musicalité et expression corporelle. Du débutant à l\'avancé. Académie CID-UNESCO. Réservez cours!',
     },
     ballet: {
-      title: 'Cours de Ballet à Barcelone | Technique Classique et Élégance | Farray\'s Center',
-      description: "Cours de ballet classique à Barcelone pour adultes. Apprenez la technique, la posture et l'élégance avec des maîtres formés à l'ENA. Académie CID-UNESCO entre Plaza España et Sants.",
+      title: 'Cours de Ballet à Barcelone | Farray\'s Center',
+      description: 'Ballet classique à Barcelone pour adultes. Technique, posture et élégance avec maîtres formés à l\'ENA. Académie CID-UNESCO. Plaza España. Réservez !',
     },
     cuerpoFit: {
       title: 'Cuerpo-Fit Barcelone | Cardio Dance | Farray\'s Center',
@@ -3438,7 +3444,7 @@ const metadata = {
     },
     blogDanzaContemporaneaVsJazzBallet: {
       title: 'Contemporaine vs Jazz vs Ballet : Guide 2025 | Farray\'s Center',
-      description: 'Découvrez les différences entre danse contemporaine, modern jazz et ballet classique. Comparaison technique, avantages et comment choisir le style qui vous convient le mieux.',
+      description: 'Différences entre danse contemporaine, modern jazz et ballet classique. Comparaison technique, avantages et comment choisir le style qui vous convient.',
     },
     blogDanzasUrbanas: {
       title: 'Danses Urbaines Barcelone : Guide Complet Hip-Hop 2026 | Farray\'s',
@@ -3472,7 +3478,7 @@ const metadata = {
     },
     // New class pages
     afroContemporaneo: {
-      title: 'Cours d\'Afro Contemporain à Barcelone | Fusion Danse Africaine et Contemporaine | Farray\'s Center',
+      title: 'Cours d\'Afro Contemporain à Barcelone | Farray\'s Center',
       description: 'Apprenez l\'Afro Contemporain à Barcelone : fusion de danse africaine traditionnelle et technique contemporaine. Cours pour tous niveaux. Académie CID-UNESCO. Réservez votre cours !',
     },
     afroJazz: {
@@ -3480,27 +3486,27 @@ const metadata = {
       description: 'Afro Jazz Barcelone : rythmes africains et technique jazz moderne. Expression corporelle, musicalité et énergie. Tous niveaux. CID-UNESCO. Réservez!',
     },
     contemporaneo: {
-      title: 'Cours de Danse Contemporaine à Barcelone | Technique et Expression | Farray\'s Center',
-      description: 'Danse contemporaine Barcelone pour adultes. Technique, expression et créativité. Académie CID-UNESCO. Cours pour tous niveaux. Réservez!\'essai !',
+      title: 'Cours de Danse Contemporaine à Barcelone | Farray\'s Center',
+      description: 'Danse contemporaine à Barcelone pour adultes. Technique, expression corporelle et créativité. Académie CID-UNESCO. Réservez votre cours d\'essai !',
     },
     stretching: {
-      title: 'Cours de Stretching pour Danseurs à Barcelone | Flexibilité et Mobilité | Farray\'s Center',
+      title: 'Cours de Stretching à Barcelone | Flexibilité et Mobilité | Farray\'s Center',
       description: 'Stretching danseurs Barcelone. Améliorez flexibilité, mobilité et prévenez blessures. Complément parfait tout style danse. Réservez cours!',
     },
     hipHop: {
-      title: 'Cours de Hip Hop à Barcelone | Apprenez avec des Professionnels | Farray\'s Center',
+      title: 'Cours de Hip Hop à Barcelone | Farray\'s Center',
       description: 'Hip Hop Barcelone avec professeurs experts. Débutant à avancé. Styles : Old School, New Style, House. Académie CID-UNESCO. Réservez cours!',
     },
     entrenamientoBailarines: {
-      title: 'Entraînement pour Danseurs à Barcelone | Technique et Condition Physique | Farray\'s Center',
+      title: 'Entraînement pour Danseurs à Barcelone | Farray\'s Center',
       description: 'Entraînement danseurs Barcelone. Améliorez technique, force, endurance et flexibilité. Programme conçu par professionnels danse CID-UNESCO.',
     },
     bachataLadyStyle: {
-      title: 'Cours de Bachata Lady Style à Barcelone | Style Féminin et Sensualité | Farray\'s Center',
+      title: 'Cours de Bachata Lady Style à Barcelone | Style Féminin | Farray\'s Center',
       description: 'Bachata Lady Style Barcelone. Féminité, élégance et style personnel en bachata. Mouvements sensuels et expressifs. Réservez votre cours!',
     },
     bumBum: {
-      title: 'Bum Bum - Exercices Fessiers à Barcelone | Tonification et Fitness | Farray\'s Center',
+      title: 'Bum Bum - Exercices Fessiers à Barcelone | Farray\'s Center',
       description: 'Cours de Bum Bum à Barcelone : exercices spécialisés pour fessiers et jambes. Tonifiez, renforcez et sculptez avec musique et énergie. Réservez!',
     },
     cuerpoFitPage: {
@@ -3517,11 +3523,11 @@ const metadata = {
       description: 'Obtenez des réponses sur nos cours de danse à Barcelone. Horaires, tarifs, niveaux, inscription et tout ce que vous devez savoir avant de commencer.',
     },
     alquilerSalas: {
-      title: 'Location de Studios de Danse à Barcelone | 4 Espaces Professionnels | Farray\'s Center',
+      title: 'Location de Studios de Danse à Barcelone | Farray\'s Center',
       description: 'Louez nos 4 studios de danse professionnels à Barcelone (40-120m²). Sol de danse, miroirs, climatisation et son. Dès 14€/heure. Entre Plaza España et Sants.',
     },
     estudioGrabacion: {
-      title: 'Studio de Tournage Vidéo Danse à Barcelone | Production Audiovisuelle | Farray\'s Center',
+      title: 'Studio de Tournage Vidéo Danse à Barcelone | Farray\'s Center',
       description: 'Studio d\'enregistrement pour vidéos de danse à Barcelone. Équipement professionnel, éclairage et son. Parfait pour clips, tutoriels et contenu réseaux sociaux.',
     },
     // Legal pages
@@ -3815,6 +3821,7 @@ routes.forEach(route => {
     blogTranslations: blogTranslations[lang] || {},
     homeTranslations: homeTranslations[lang] || {},
     scheduleTranslations: scheduleTranslations[lang] || {},
+    faqJsonTranslations: faqTranslations[lang] || {},
     styleKeyMap: STYLE_KEY_MAP,
     faqPageMap: FAQ_PAGE_MAP,
   });
