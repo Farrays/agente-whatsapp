@@ -32,8 +32,9 @@ import { retrieveRelevantChunks } from './rag/index.js';
 
 /** Static URL patterns that Laura is allowed to share (website pages only) */
 const VALID_STATIC_URL_PATTERNS: RegExp[] = [
-  // Booking widget WITHOUT classId (generic page only — classId URLs must come from tools)
+  // Booking widget: plain or with style filter (safe — widget just filters by style)
   /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/reservas$/i,
+  /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/reservas\?style=[a-z]+$/i,
   // Known website pages
   /^(https?:\/\/)?(www\.)?farrayscenter\.com\/[a-z]{2}\/(hazte-socio|horarios-clases-baile-barcelona|precios-clases-baile-barcelona|calendario|contacto|mi-reserva|profesores-baile-barcelona|alquiler-salas-baile-barcelona|team-building-barcelona|regala-baile|preguntas-frecuentes|como-llegar-escuela-baile-barcelona)$/i,
   // App store links (from FAQs chunk)

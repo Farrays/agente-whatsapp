@@ -23,6 +23,7 @@ import { getMemberLookup } from './member-lookup.js';
 import { getMomenceClient } from '../momence-client.js';
 import { activateTakeover, addNotification } from './human-takeover.js';
 import { SCHEDULE_DATA } from '../../../constants/horarios-schedule-data.js';
+import { STYLE_KEYWORDS } from '../../../constants/style-mappings.js';
 
 // ============================================================================
 // MOMENCE URL CONFIG
@@ -50,6 +51,20 @@ function buildClassUrl(className: string, sessionId: number): string {
  */
 function buildMembershipUrl(membershipName: string, membershipId: number): string {
   return `https://momence.com/${MOMENCE_HOST}/membership/${toMomenceSlug(membershipName)}/${membershipId}`;
+}
+
+/**
+ * Maps a user-facing style name to the widget's ?style= parameter value.
+ * Uses STYLE_KEYWORDS from style-mappings.ts for consistent mapping.
+ */
+function mapToWidgetStyle(styleName: string): string {
+  const lower = styleName.toLowerCase().trim();
+  for (const [widgetStyle, keywords] of Object.entries(STYLE_KEYWORDS)) {
+    if (widgetStyle === lower) return widgetStyle;
+    if (keywords.some(kw => lower.includes(kw) || kw.includes(lower))) return widgetStyle;
+  }
+  // Fallback: strip spaces (e.g. "hip hop" → "hiphop")
+  return lower.replace(/\s+/g, '');
 }
 
 // ============================================================================
@@ -394,7 +409,7 @@ export async function executeTool(
         result = await executeManageTrialBooking(toolInput, context);
         break;
       case 'get_weekly_schedule':
-        result = executeGetWeeklySchedule(toolInput);
+        result = executeGetWeeklySchedule(toolInput, context.lang);
         break;
       default:
         result = JSON.stringify({ error: `Herramienta desconocida: ${toolName}` });
@@ -508,9 +523,12 @@ async function executeSearchClasses(
         _schedule_note:
           'Este horario semanal es solo referencia. NO tiene enlaces ni IDs. Las reservas online se abren unas semanas antes. NO inventes URLs.',
       }),
+      ...(style && {
+        booking_url: `https://www.farrayscenter.com/${lang}/reservas?style=${mapToWidgetStyle(style)}`,
+      }),
       _instruction: weeklySchedule
-        ? 'Muestra el horario semanal de referencia incluido arriba. Explica que las reservas se abren mas adelante. NO llames a get_weekly_schedule (ya tienes los datos). Comparte el enlace scheduleUrl para mas info.'
-        : 'No se encontraron clases con esos filtros. Si usaste filtros (day/level), sugiere probar sin ellos. NO llames a get_weekly_schedule.',
+        ? 'Muestra el horario semanal de referencia incluido arriba. Explica que las reservas se abren mas adelante. Comparte booking_url para que vean clases disponibles de ese estilo en el widget. NO llames a get_weekly_schedule (ya tienes los datos). NUNCA inventes URLs con classId.'
+        : 'No se encontraron clases con esos filtros. Si usaste filtros (day/level), sugiere probar sin ellos. Comparte booking_url si esta disponible. NO llames a get_weekly_schedule. NUNCA inventes URLs con classId.',
       scheduleUrl: `https://www.farrayscenter.com/${lang}/horarios-clases-baile-barcelona`,
     });
   }
@@ -531,7 +549,7 @@ async function executeSearchClasses(
       is_full: s.isFull,
       is_within_24h: classDate < in24h,
       class_url: buildClassUrl(s.name, s.id),
-      booking_url: `https://www.farrayscenter.com/${lang}/reservas?classId=${s.id}`,
+      booking_url: `https://www.farrayscenter.com/${lang}/reservas?style=${s.style}`,
     };
   });
 
@@ -540,11 +558,11 @@ async function executeSearchClasses(
     showing: classes.length,
     classes,
     _instruction:
-      'IMPORTANTE: booking_url = widget farrayscenter.com (para prueba gratis, locales nuevos). class_url = Momence (para pago, turistas o miembros sin creditos). Comparte SOLO la URL correcta segun el tipo de usuario. NUNCA inventes URLs.',
+      'IMPORTANTE: booking_url = widget farrayscenter.com filtrado por estilo (prueba gratis, locales nuevos). class_url = Momence (pago directo, turistas o miembros sin creditos). Comparte SOLO la URL correcta segun el tipo de usuario. NUNCA modifiques ni construyas URLs. NUNCA anadas classId a ninguna URL.',
   });
 }
 
-function executeGetWeeklySchedule(input: Record<string, unknown>): string {
+function executeGetWeeklySchedule(input: Record<string, unknown>, lang: string = 'es'): string {
   let classes = [...SCHEDULE_DATA];
 
   const style = input['style'] as string | undefined;
@@ -589,8 +607,12 @@ function executeGetWeeklySchedule(input: Record<string, unknown>): string {
   return JSON.stringify({
     found: classes.length,
     schedule: grouped,
+    ...(style && {
+      booking_url: `https://www.farrayscenter.com/${lang}/reservas?style=${mapToWidgetStyle(style)}`,
+    }),
+    scheduleUrl: `https://www.farrayscenter.com/${lang}/horarios-clases-baile-barcelona`,
     _instruction:
-      'ATENCION: Este horario es solo referencia general. NO tiene enlaces de reserva ni IDs. Para ofrecer clases concretas al usuario DEBES llamar a search_upcoming_classes (tiene booking_url y class_url reales). NUNCA uses estos datos para listar clases directamente al usuario sin antes llamar a search_upcoming_classes. NUNCA inventes booking_url con classId a partir de estos datos.',
+      'Este horario es referencia general. Comparte booking_url para que vean clases de este estilo en el widget de reservas. Para clases concretas con fechas usa search_upcoming_classes. NUNCA inventes URLs con classId.',
   });
 }
 
