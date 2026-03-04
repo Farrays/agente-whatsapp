@@ -22,8 +22,6 @@ import { getMemberLookup } from './member-lookup.js';
 import { LAURA_TOOLS_MEMBER, LAURA_TOOLS_NEW_USER, executeTool } from './laura-tools.js';
 import { markdownToWhatsApp, splitIntoBubbles } from './whatsapp-formatter.js';
 import { sendTypingIndicator, sendTextMessage as sendWhatsAppText } from '../whatsapp.js';
-import { classifyQuery } from './query-classifier.js';
-import { generateSimpleResponse } from './openai-client.js';
 import { validatePrices } from './response-validator.js';
 import { logGaps } from './knowledge-gap.js';
 import { retrieveRelevantChunks } from './rag/index.js';
@@ -468,44 +466,8 @@ export async function processSimpleMessage(
   // 4. Obtener historial de conversación
   const history = await getConversationHistory(redis, phone);
 
-  // 5. Hybrid routing: GPT-4.1-mini for simple, Claude Sonnet for tools
-  const modelRouting = process.env['LAURA_MODEL_ROUTING'] || 'anthropic';
-  const queryComplexity = modelRouting === 'hybrid' ? classifyQuery(text) : 'needs_tools';
-
-  console.log(`[agent-simple] Routing: mode=${modelRouting}, complexity=${queryComplexity}`);
-
-  // 5a. GPT-4.1-mini path (simple queries, no tools)
-  if (queryComplexity === 'simple') {
-    try {
-      const gptResponse = await generateSimpleResponse({
-        systemPrompt,
-        messages: [
-          ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-          { role: 'user' as const, content: text },
-        ],
-      });
-
-      if (gptResponse) {
-        return handleResponse({
-          assistantMessage: gptResponse,
-          history,
-          text,
-          phone,
-          redis,
-          language,
-          input,
-          startTime,
-          model: 'gpt-4.1-mini',
-          iterations: 0,
-        });
-      }
-      // Empty response → fall through to Claude
-      console.warn('[agent-simple] GPT returned empty response, falling back to Claude');
-    } catch (gptError) {
-      console.error('[agent-simple] GPT error, falling back to Claude:', gptError);
-      // Fall through to Claude Sonnet
-    }
-  }
+  // 5. All messages → Claude Sonnet with tools (GPT-4.1-mini disabled — hallucinated class data)
+  console.log(`[agent-simple] Routing: mode=anthropic, complexity=needs_tools`);
 
   // 5b. Claude Sonnet path (complex queries with tool_use)
   const messages: Anthropic.MessageParam[] = [
