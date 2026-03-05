@@ -234,13 +234,16 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
   // ------------------------------------------------------------------
   const sessionIds = new Set<string>();
   for (const b of allBookings) {
-    if (b.sessionId && b.momenceBookingId) {
+    if (b.sessionId) {
       sessionIds.add(b.sessionId);
     }
   }
 
-  // Map: sessionId → Map<momenceBookingId, checkedIn>
-  const checkinMap = new Map<string, Map<number, boolean>>();
+  // Map: sessionId → { byId: Map<bookingId, checkedIn>, byEmail: Map<email, checkedIn> }
+  const checkinMap = new Map<
+    string,
+    { byId: Map<number, boolean>; byEmail: Map<string, boolean> }
+  >();
 
   for (const sid of sessionIds) {
     try {
@@ -249,11 +252,20 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
         pageSize: 200,
         includeCancelled: true,
       });
-      const map = new Map<number, boolean>();
+      const byId = new Map<number, boolean>();
+      const byEmail = new Map<string, boolean>();
       for (const booking of resp.payload) {
-        map.set(booking.id, booking.checkedIn || false);
+        byId.set(booking.id, booking.checkedIn || false);
+        // Fallback: also index by email for bookings without momenceBookingId
+        // Momence API returns member data but our interface doesn't type it
+        const raw = booking as Record<string, unknown>;
+        const member = raw['member'] as Record<string, unknown> | undefined;
+        const email = (member?.['email'] as string) || '';
+        if (email) {
+          byEmail.set(email.toLowerCase(), booking.checkedIn || false);
+        }
       }
-      checkinMap.set(sid, map);
+      checkinMap.set(sid, { byId, byEmail });
     } catch (e) {
       console.warn(
         `[admin-bookings] Check-in fetch failed for session ${sid}:`,
@@ -264,10 +276,15 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
 
   // Apply check-in data
   for (const b of allBookings) {
-    if (b.sessionId && b.momenceBookingId) {
-      const sessionMap = checkinMap.get(b.sessionId);
-      if (sessionMap) {
-        b.checkedIn = sessionMap.get(b.momenceBookingId) ?? false;
+    if (b.sessionId) {
+      const sessionData = checkinMap.get(b.sessionId);
+      if (sessionData) {
+        // Try by momenceBookingId first, then fallback to email
+        if (b.momenceBookingId) {
+          b.checkedIn = sessionData.byId.get(b.momenceBookingId) ?? false;
+        } else if (b.email) {
+          b.checkedIn = sessionData.byEmail.get(b.email.toLowerCase()) ?? false;
+        }
       }
     }
     // If reconciliation already marked as attended, also set checkedIn true
@@ -384,11 +401,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    const { date, from, to } = req.query;
+    const { date, from, to, search } = req.query;
+    const searchQuery =
+      typeof search === 'string' && search.trim().length >= 2 ? search.trim().toLowerCase() : '';
 
-    // Determine date range
+    // Determine date range (ignored when searching)
     let dates: string[];
-    if (date && typeof date === 'string') {
+    if (searchQuery) {
+      // Search mode: no date filter, fetch ALL bookings
+      dates = [];
+    } else if (date && typeof date === 'string') {
       dates = [date];
     } else if (from && to && typeof from === 'string' && typeof to === 'string') {
       dates = getDatesInRange(from, to);
@@ -489,18 +511,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
             const isoMatch = (details.classDate || '').match(/\d{4}-\d{2}-\d{2}/);
             const bookingDate = isoMatch ? isoMatch[0] : '';
 
-            // Only include bookings whose date falls in the requested range
-            if (!bookingDate || !dateSet.has(bookingDate)) continue;
+            if (searchQuery) {
+              // Search mode: skip date filter, match by name/email/phone
+              if (!bookingDate) continue;
+              const fullName = `${details.firstName} ${details.lastName}`.toLowerCase();
+              const matches =
+                fullName.includes(searchQuery) ||
+                details.email.toLowerCase().includes(searchQuery) ||
+                normalizePhone(details.phone).includes(searchQuery) ||
+                details.phone.includes(searchQuery);
+              if (!matches) continue;
 
-            const booking = toAdminBooking(details, bookingDate);
-            const dayBookings = bookingsByDate.get(bookingDate);
-            if (dayBookings) {
-              dayBookings.push(booking);
-            }
+              const booking = toAdminBooking(details, bookingDate);
+              let dayList = bookingsByDate.get(bookingDate);
+              if (!dayList) {
+                dayList = [];
+                bookingsByDate.set(bookingDate, dayList);
+              }
+              dayList.push(booking);
+            } else {
+              // Normal mode: only include bookings whose date falls in the requested range
+              if (!bookingDate || !dateSet.has(bookingDate)) continue;
 
-            // Self-heal: ensure this booking is in the reminders set
-            if (!reminderEventIds.has(details.eventId)) {
-              redis.sadd(`reminders:${bookingDate}`, details.eventId).catch(() => {});
+              const booking = toAdminBooking(details, bookingDate);
+              const dayBookings = bookingsByDate.get(bookingDate);
+              if (dayBookings) {
+                dayBookings.push(booking);
+              }
+
+              // Self-heal: ensure this booking is in the reminders set
+              if (!reminderEventIds.has(details.eventId)) {
+                redis.sadd(`reminders:${bookingDate}`, details.eventId).catch(() => {});
+              }
             }
           } catch {
             // Skip malformed entries
@@ -540,7 +582,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     let totalCancelled = 0;
     let totalRescheduled = 0;
 
-    for (const dateStr of dates) {
+    // In search mode, iterate all dates found; otherwise use requested dates
+    const responseDates = searchQuery ? [...bookingsByDate.keys()].sort() : dates;
+
+    for (const dateStr of responseDates) {
       const bookings = bookingsByDate.get(dateStr) || [];
 
       // Sort by class time
@@ -593,7 +638,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         totalCancelled,
         totalRescheduled,
         attendanceRate: isNaN(attendanceRate) || !isFinite(attendanceRate) ? 0 : attendanceRate,
-        dateRange: { from: dates[0], to: dates[dates.length - 1] },
+        dateRange: { from: responseDates[0], to: responseDates[responseDates.length - 1] },
       },
       days,
     });
