@@ -2040,6 +2040,135 @@ export async function sendNoShowRescheduleEmail(
 }
 
 // =============================================================================
+// NO-SHOW FAILED (RESCHEDULE NOT POSSIBLE) EMAIL
+// =============================================================================
+
+interface NoShowFailedEmailData {
+  to: string;
+  firstName: string;
+  className: string;
+  classDate: string;
+  classTime: string;
+}
+
+/**
+ * Send email when a no-show is detected but automatic rescheduling failed
+ * (class full, no availability next week, etc.).
+ * Uses branded template consistent with the reschedule email.
+ */
+export async function sendNoShowFailedEmail(
+  data: NoShowFailedEmailData
+): Promise<{ success: boolean; error?: string }> {
+  const resend = getResend();
+
+  const subject = `Sentimos que no hayas podido venir a ${data.className}`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    <!-- Header -->
+    <tr>
+      <td style="background: ${BRAND_GRADIENT}; padding: 30px 40px; text-align: center;">
+        <img src="${LOGO_URL}" alt="Farray's Center" width="80" style="display: block; margin: 0 auto 10px;" />
+        <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 600;">Te esperamos</h1>
+      </td>
+    </tr>
+
+    <!-- Body -->
+    <tr>
+      <td style="padding: 40px;">
+        <p style="font-size: 16px; color: #333; line-height: 1.6;">
+          Hola <strong>${data.firstName}</strong>,
+        </p>
+        <p style="font-size: 16px; color: #333; line-height: 1.6;">
+          Sentimos que no hayas podido asistir a tu clase de <strong>${data.className}</strong> del ${data.classDate} a las ${data.classTime}.
+        </p>
+        <p style="font-size: 16px; color: #333; line-height: 1.6;">
+          Hemos intentado reprogramar tu clase automáticamente, pero no hay disponibilidad la semana que viene.
+        </p>
+        <p style="font-size: 16px; color: #333; line-height: 1.6;">
+          ¡No te preocupes! Puedes reservar otra clase de prueba gratuita en el horario que mejor te venga:
+        </p>
+
+        <!-- Action Buttons -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
+          <tr>
+            <td align="center">
+              <a href="${BASE_URL}/es/horarios-precios" style="${BUTTON_PRIMARY}">
+                Reservar otra clase
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top: 12px;">
+              <a href="${WHATSAPP_URL}" style="${BUTTON_SECONDARY}">
+                Contactar por WhatsApp
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top: 12px;">
+              <a href="${GOOGLE_MAPS_URL}" style="${BUTTON_SECONDARY}">
+                📍 Cómo llegar
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="font-size: 15px; color: #333; line-height: 1.6;">
+          Lo importante es que vengas a conocernos 😊
+        </p>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background: #1a1a2e; padding: 30px 40px; text-align: center;">
+        <p style="color: #ccc; font-size: 13px; margin: 0 0 8px;">
+          ${LOCATION_FULL}
+        </p>
+        <p style="margin: 0;">
+          <a href="${INSTAGRAM_URL}" style="color: ${BRAND_PRIMARY}; text-decoration: none; font-size: 13px;">Instagram</a>
+          &nbsp;·&nbsp;
+          <a href="${WHATSAPP_URL}" style="color: ${BRAND_PRIMARY}; text-decoration: none; font-size: 13px;">WhatsApp</a>
+          &nbsp;·&nbsp;
+          <a href="${BASE_URL}" style="color: ${BRAND_PRIMARY}; text-decoration: none; font-size: 13px;">Web</a>
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      replyTo: REPLY_TO,
+      headers: EMAIL_HEADERS,
+      subject,
+      html,
+    });
+
+    if (result.error) {
+      return { success: false, error: result.error.message };
+    }
+
+    console.log(`[email] No-show failed email sent to ${data.to}`);
+    return { success: true };
+  } catch (error) {
+    console.error('[sendNoShowFailedEmail] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// =============================================================================
 // RE-EXPORT GOOGLE CALENDAR (Bundler Compatibility)
 // =============================================================================
 /**

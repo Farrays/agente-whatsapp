@@ -357,8 +357,8 @@ async function reconcileBooking(
       booking.reconciliationStatus = 'no_show_unresolved';
       await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
 
-      // Still send "we miss you" notification
-      await sendNoShowNotification(booking);
+      // Send branded "could not reschedule" notification
+      await sendNoShowFailedNotification(booking);
 
       return {
         eventId,
@@ -379,10 +379,8 @@ async function reconcileBooking(
   }
 
   // No reschedule possible (already rescheduled before, or limit reached)
+  // No notification for repeat no-shows — they already received a reschedule notification before
   await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
-
-  // Send "we miss you" notification
-  await sendNoShowNotification(booking);
 
   return {
     eventId,
@@ -391,34 +389,39 @@ async function reconcileBooking(
   };
 }
 
-async function sendNoShowNotification(booking: BookingDetails): Promise<void> {
-  // Send email: "Te echamos de menos"
-  const managementUrl = `https://www.farrayscenter.com/es/mi-reserva?email=${encodeURIComponent(booking.email)}&event=${booking.eventId}`;
+function formatDateForDisplay(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  return d.toLocaleDateString('es-ES', {
+    timeZone: SPAIN_TIMEZONE,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+async function sendNoShowFailedNotification(booking: BookingDetails): Promise<void> {
+  const classDate = formatDateForDisplay(booking.classDate);
+
+  // 1. Branded email explaining reschedule failed
   try {
-    const { sendEmail } = await import('./lib/email.js');
-    await sendEmail({
+    const { sendNoShowFailedEmail } = await import('./lib/email.js');
+    await sendNoShowFailedEmail({
       to: booking.email,
-      subject: `Te echamos de menos en ${booking.className}`,
-      html: `
-        <p>Hola ${booking.firstName},</p>
-        <p>Sentimos que no hayas podido asistir a tu clase de <strong>${booking.className}</strong>.</p>
-        <p>Si quieres probar otro estilo de baile o reservar otro día, aquí tienes los enlaces:</p>
-        <p><a href="${managementUrl}" style="display:inline-block;padding:10px 20px;background:#e91e63;color:white;text-decoration:none;border-radius:8px;">Gestionar mi reserva</a></p>
-        <p><a href="https://www.farrayscenter.com/es/horarios-precios">🗓️ Ver todos los horarios</a></p>
-        <p>Lo importante es que vengas a conocernos 😊</p>
-        <p>El equipo de Farray's Center</p>
-      `,
+      firstName: booking.firstName,
+      className: booking.className,
+      classDate,
+      classTime: booking.classTime,
     });
   } catch (e) {
-    console.warn(`[reconciliation] No-show email failed:`, e);
+    console.warn(`[reconciliation] No-show failed email error:`, e);
   }
 
-  // Try WhatsApp
+  // 2. WhatsApp (coherent with email — no link to old useless booking)
   try {
     const { sendTextMessage } = await import('./lib/whatsapp.js');
     await sendTextMessage(
       booking.phone,
-      `Hola ${booking.firstName} 👋\n\nSentimos que no hayas podido venir a tu clase de ${booking.className} hoy.\n\nSi quieres probar *otro estilo de baile* u *otro día*, entra en tu reserva y cámbiala:\n📋 ${managementUrl}\n\n🗓️ Ver horarios: https://www.farrayscenter.com/es/horarios-precios\n\n¡Te esperamos! 🎶`
+      `Hola ${booking.firstName} 👋\n\nSentimos que no hayas podido venir a tu clase de ${booking.className}.\n\nHemos intentado reprogramarla, pero no hay disponibilidad la semana que viene.\n\nPuedes reservar otra clase de prueba gratuita aquí:\n🗓️ https://www.farrayscenter.com/es/horarios-precios\n\n¡Te esperamos! 💃`
     );
   } catch {
     // WhatsApp window may have expired, email is the reliable channel
