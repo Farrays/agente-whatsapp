@@ -213,12 +213,6 @@ const HeelsBarcelonaPage: React.FC = () => {
                   {t('enrollNow')}
                   <CheckIcon className="w-5 h-5 ml-2" />
                 </Link>
-                <Link
-                  to={`/${locale}#enroll`}
-                  className="inline-flex items-center justify-center bg-transparent border-2 border-primary-accent text-primary-accent font-bold text-base sm:text-lg py-4 px-8 sm:px-10 rounded-full transition-all duration-300 hover:bg-primary-accent hover:text-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transform-none motion-reduce:transition-none"
-                >
-                  {t('heroCTA1')}
-                </Link>
               </div>
             </AnimateOnScroll>
           </div>
@@ -474,7 +468,7 @@ const HeelsBarcelonaPage: React.FC = () => {
                     </li>
                   </ul>
                   <Link
-                    to={`/${locale}/clases/clases-de-sexy-style`}
+                    to={`/${locale}/clases/sexy-style-barcelona`}
                     className="inline-flex items-center justify-center w-full bg-transparent border-2 border-primary-accent text-primary-accent font-bold py-3 px-6 rounded-full transition-all duration-300 hover:bg-primary-accent hover:text-white hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transform-none motion-reduce:transition-none"
                   >
                     {t('heelsBarcelona_whichStyle_sexystyle_cta')}
