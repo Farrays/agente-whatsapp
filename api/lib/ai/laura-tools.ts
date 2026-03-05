@@ -830,13 +830,43 @@ async function executeCancelBooking(
       isLateCancellation: false,
     });
 
+    // Verify cancellation by re-checking bookings
+    try {
+      const now = new Date();
+      const verify = await client.getMemberSessionBookings(context.memberId, {
+        page: 0,
+        pageSize: 20,
+        startAfter: now.toISOString(),
+      });
+      const stillExists = (verify.payload || []).some(b => b.id === bookingId && !b.cancelledAt);
+      if (stillExists) {
+        console.error(
+          `[cancel_booking] Verification FAILED: booking ${bookingId} still active after cancel`
+        );
+        return JSON.stringify({
+          error:
+            'La cancelación no se ha completado correctamente. Por favor, cancela directamente desde la app de Momence o contacta con el estudio.',
+        });
+      }
+    } catch (verifyError) {
+      // Verification failed but cancel API returned OK — trust the API
+      console.warn(`[cancel_booking] Could not verify cancellation: ${verifyError}`);
+    }
+
     return JSON.stringify({
       success: true,
       message: 'Reserva cancelada correctamente.',
+      _instruction:
+        'Confirma al usuario que se ha cancelado. NO inventes detalles sobre créditos ni reembolsos, solo di que se ha cancelado.',
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
-    return JSON.stringify({ error: `No se pudo cancelar: ${errorMsg}` });
+    console.error(`[cancel_booking] FAILED for bookingId=${bookingId}: ${errorMsg}`);
+    return JSON.stringify({
+      error: `No se pudo cancelar la reserva. ${errorMsg}`,
+      _instruction:
+        'Dile al usuario que no se ha podido cancelar y que contacte con el estudio o use la app de Momence.',
+    });
   }
 }
 
