@@ -768,6 +768,7 @@ async function executeGetMemberBookings(context: ToolContext): Promise<string> {
     starts_at: b.session?.startsAt || '',
     checked_in: b.checkedIn || false,
     cancelled: !!b.cancelledAt,
+    recurring_booking_id: b.recurringBookingId || null,
   }));
 
   if (bookings.length === 0) {
@@ -780,6 +781,8 @@ async function executeGetMemberBookings(context: ToolContext): Promise<string> {
   return JSON.stringify({
     found: bookings.length,
     bookings,
+    _instruction:
+      'Si recurring_booking_id tiene valor, la reserva es RECURRENTE (clase fija semanal). Para cancelar toda la recurrencia → cancel_recurring_booking con ese ID. Para cancelar solo UNA sesión → cancel_booking con booking_id. SIEMPRE pregunta al usuario qué quiere hacer.',
   });
 }
 

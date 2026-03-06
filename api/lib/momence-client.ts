@@ -48,6 +48,7 @@ export interface MomenceBooking {
   createdAt: string;
   checkedIn: boolean;
   cancelledAt?: string;
+  recurringBookingId?: number;
   session?: {
     id: number;
     name: string;
