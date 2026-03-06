@@ -1,7 +1,7 @@
 /**
  * Laura Tools - Claude tool_use integration for Momence actions
  *
- * Defines 13 tools that Laura can use during WhatsApp conversations:
+ * Defines 20 tools that Laura can use during WhatsApp conversations:
  * 1. search_upcoming_classes - Real-time class schedule
  * 2. get_member_info - Credits, membership status
  * 3. get_member_bookings - Upcoming reservations
@@ -15,6 +15,13 @@
  * 11. get_credit_details - Detailed credit breakdown per bought membership
  * 12. get_visit_history - Past class attendance history
  * 13. update_member_email - Update member email address
+ * 14. manage_trial_booking - Manage trial class booking
+ * 15. get_weekly_schedule - Static weekly schedule reference
+ * 16. update_member_name - Update member name
+ * 17. update_member_phone - Update member phone number
+ * 18. remove_check_in - Undo a check-in
+ * 19. cancel_recurring_booking - Cancel a recurring booking
+ * 20. get_session_bookings - View session attendees
  */
 
 import type { Redis } from '@upstash/redis';
@@ -325,6 +332,96 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  // Tool 16: update_member_name
+  {
+    name: 'update_member_name',
+    description:
+      'Actualizar el nombre del miembro en Momence. IMPORTANTE: Confirma los nuevos datos con el usuario antes de ejecutar.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        first_name: {
+          type: 'string',
+          description: 'Nuevo nombre del miembro',
+        },
+        last_name: {
+          type: 'string',
+          description: 'Nuevo apellido del miembro',
+        },
+      },
+      required: ['first_name', 'last_name'],
+    },
+  },
+  // Tool 17: update_member_phone
+  {
+    name: 'update_member_phone',
+    description:
+      'Actualizar el teléfono del miembro en Momence. IMPORTANTE: Confirma el nuevo número con el usuario antes de ejecutar.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        phone_number: {
+          type: 'string',
+          description: 'Nuevo número de teléfono (con código de país, ej: +34622247085)',
+        },
+      },
+      required: ['phone_number'],
+    },
+  },
+  // Tool 18: remove_check_in
+  {
+    name: 'remove_check_in',
+    description:
+      'Deshacer el check-in de una reserva. Usa cuando se haya hecho un check-in por error. IMPORTANTE: Confirma con el usuario antes de ejecutar.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        booking_id: {
+          type: 'number',
+          description:
+            'ID de la reserva para deshacer el check-in (obtenido de get_member_bookings)',
+        },
+      },
+      required: ['booking_id'],
+    },
+  },
+  // Tool 19: cancel_recurring_booking
+  {
+    name: 'cancel_recurring_booking',
+    description:
+      'Cancelar una reserva recurrente (clase semanal fija). Opcionalmente puede cancelar solo a partir de una sesión específica. IMPORTANTE: Confirma con el usuario antes de ejecutar.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        booking_id: {
+          type: 'number',
+          description: 'ID de la reserva recurrente a cancelar',
+        },
+        after_session_id: {
+          type: 'number',
+          description:
+            'Si se proporciona, cancela la recurrencia solo a partir de esta sesión (opcional)',
+        },
+      },
+      required: ['booking_id'],
+    },
+  },
+  // Tool 20: get_session_bookings
+  {
+    name: 'get_session_bookings',
+    description:
+      'Ver las reservas/asistentes de una sesión/clase específica. Útil para saber cuántas personas van a una clase.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'number',
+          description: 'ID de la sesión (obtenido de search_upcoming_classes)',
+        },
+      },
+      required: ['session_id'],
+    },
+  },
 ];
 
 // ============================================================================
@@ -410,6 +507,21 @@ export async function executeTool(
         break;
       case 'get_weekly_schedule':
         result = executeGetWeeklySchedule(toolInput, context.lang);
+        break;
+      case 'update_member_name':
+        result = await executeUpdateMemberName(toolInput, context);
+        break;
+      case 'update_member_phone':
+        result = await executeUpdateMemberPhone(toolInput, context);
+        break;
+      case 'remove_check_in':
+        result = await executeRemoveCheckIn(toolInput, context);
+        break;
+      case 'cancel_recurring_booking':
+        result = await executeCancelRecurringBooking(toolInput, context);
+        break;
+      case 'get_session_bookings':
+        result = await executeGetSessionBookings(toolInput, context);
         break;
       default:
         result = JSON.stringify({ error: `Herramienta desconocida: ${toolName}` });
@@ -1559,4 +1671,210 @@ async function executeManageTrialBooking(
   }
 
   return JSON.stringify({ error: 'Acción no reconocida' });
+}
+
+// ============================================================================
+// UPDATE MEMBER NAME
+// ============================================================================
+
+async function executeUpdateMemberName(
+  input: Record<string, unknown>,
+  context: ToolContext
+): Promise<string> {
+  if (!context.memberId) {
+    return JSON.stringify({ error: 'No se encontró tu perfil de miembro.' });
+  }
+
+  const firstName = input['first_name'] as string;
+  const lastName = input['last_name'] as string;
+
+  if (!firstName || !lastName) {
+    return JSON.stringify({ error: 'Faltan el nombre o apellido.' });
+  }
+
+  const memberService = getMemberLookup(context.redis);
+
+  try {
+    const result = await memberService.updateMemberName(context.memberId, firstName, lastName);
+
+    if (!result.success) {
+      return JSON.stringify({ error: result.error || 'No se pudo actualizar el nombre.' });
+    }
+
+    return JSON.stringify({
+      success: true,
+      message: `Nombre actualizado correctamente a ${firstName} ${lastName}.`,
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+    return JSON.stringify({ error: `No se pudo actualizar el nombre: ${errorMsg}` });
+  }
+}
+
+// ============================================================================
+// UPDATE MEMBER PHONE
+// ============================================================================
+
+async function executeUpdateMemberPhone(
+  input: Record<string, unknown>,
+  context: ToolContext
+): Promise<string> {
+  if (!context.memberId) {
+    return JSON.stringify({ error: 'No se encontró tu perfil de miembro.' });
+  }
+
+  const phoneNumber = input['phone_number'] as string;
+
+  if (!phoneNumber) {
+    return JSON.stringify({ error: 'Falta el nuevo número de teléfono.' });
+  }
+
+  const client = getMomenceClient(context.redis);
+
+  try {
+    await client.updateMemberPhone(context.memberId, phoneNumber);
+
+    return JSON.stringify({
+      success: true,
+      message: `Teléfono actualizado correctamente a ${phoneNumber}.`,
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+    return JSON.stringify({ error: `No se pudo actualizar el teléfono: ${errorMsg}` });
+  }
+}
+
+// ============================================================================
+// REMOVE CHECK-IN
+// ============================================================================
+
+async function executeRemoveCheckIn(
+  input: Record<string, unknown>,
+  context: ToolContext
+): Promise<string> {
+  if (!context.memberId) {
+    return JSON.stringify({ error: 'No se encontró tu perfil de miembro.' });
+  }
+
+  const bookingId = input['booking_id'] as number;
+
+  if (!bookingId) {
+    return JSON.stringify({
+      error: 'Falta el ID de la reserva. Consulta primero tus reservas con get_member_bookings.',
+    });
+  }
+
+  const client = getMomenceClient(context.redis);
+
+  try {
+    await client.removeCheckIn(bookingId);
+
+    return JSON.stringify({
+      success: true,
+      message: 'Check-in deshecho correctamente.',
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+
+    if (errorMsg.includes('404')) {
+      return JSON.stringify({ error: 'Esa reserva no existe o no tiene check-in.' });
+    }
+
+    return JSON.stringify({ error: `No se pudo deshacer el check-in: ${errorMsg}` });
+  }
+}
+
+// ============================================================================
+// CANCEL RECURRING BOOKING
+// ============================================================================
+
+async function executeCancelRecurringBooking(
+  input: Record<string, unknown>,
+  context: ToolContext
+): Promise<string> {
+  if (!context.memberId) {
+    return JSON.stringify({ error: 'No se encontró tu perfil de miembro.' });
+  }
+
+  const bookingId = input['booking_id'] as number;
+  const afterSessionId = input['after_session_id'] as number | undefined;
+
+  if (!bookingId) {
+    return JSON.stringify({
+      error: 'Falta el ID de la reserva recurrente.',
+    });
+  }
+
+  const client = getMomenceClient(context.redis);
+
+  try {
+    await client.cancelRecurringBooking(bookingId, afterSessionId);
+
+    return JSON.stringify({
+      success: true,
+      message: afterSessionId
+        ? 'Reserva recurrente cancelada a partir de la sesión indicada.'
+        : 'Reserva recurrente cancelada completamente.',
+      _instruction:
+        'Confirma al usuario que se ha cancelado la reserva recurrente. Si quiere volver a reservar alguna clase suelta, puede usar search_upcoming_classes.',
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+
+    if (errorMsg.includes('404')) {
+      return JSON.stringify({ error: 'Esa reserva recurrente no existe o ya fue cancelada.' });
+    }
+
+    return JSON.stringify({ error: `No se pudo cancelar la reserva recurrente: ${errorMsg}` });
+  }
+}
+
+// ============================================================================
+// GET SESSION BOOKINGS
+// ============================================================================
+
+async function executeGetSessionBookings(
+  input: Record<string, unknown>,
+  context: ToolContext
+): Promise<string> {
+  const sessionId = input['session_id'] as number;
+
+  if (!sessionId) {
+    return JSON.stringify({
+      error: 'Falta el ID de la sesión. Busca primero las clases con search_upcoming_classes.',
+    });
+  }
+
+  const client = getMomenceClient(context.redis);
+
+  try {
+    const result = await client.getSessionBookings(sessionId, {
+      page: 0,
+      pageSize: 50,
+    });
+
+    const bookings = (result.payload || []).map(b => ({
+      booking_id: b.id,
+      checked_in: b.checkedIn || false,
+      cancelled: !!b.cancelledAt,
+    }));
+
+    const activeBookings = bookings.filter(b => !b.cancelled);
+
+    return JSON.stringify({
+      total_bookings: activeBookings.length,
+      checked_in: activeBookings.filter(b => b.checked_in).length,
+      bookings: activeBookings,
+    });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
+
+    if (errorMsg.includes('404')) {
+      return JSON.stringify({ error: 'Esa sesión no existe.' });
+    }
+
+    return JSON.stringify({
+      error: `No se pudieron obtener las reservas de la sesión: ${errorMsg}`,
+    });
+  }
 }
