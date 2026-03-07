@@ -283,7 +283,7 @@ async function enrichBookingsWithMomenceData(
     [...sessionIds].map(async sid => {
       const resp = await momence.getSessionBookings(parseInt(sid, 10), {
         page: 0,
-        pageSize: 200,
+        pageSize: 100,
         includeCancelled: true,
       });
       const byId = new Map<number, boolean>();
