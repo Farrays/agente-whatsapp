@@ -219,7 +219,7 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
   let momence: MomenceApiClient;
   try {
     momence = new MomenceApiClient(null);
-    // Validate credentials early
+    // Validate credentials early (also warms up token cache for parallel calls)
     await momence.getAccessToken();
   } catch (e) {
     console.warn(
@@ -230,23 +230,21 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
   }
 
   // ------------------------------------------------------------------
-  // 1. CHECK-IN STATUS: batch by unique sessionId
+  // 1. CHECK-IN STATUS: fetch all sessions IN PARALLEL
   // ------------------------------------------------------------------
   const sessionIds = new Set<string>();
   for (const b of allBookings) {
-    if (b.sessionId) {
-      sessionIds.add(b.sessionId);
-    }
+    if (b.sessionId) sessionIds.add(b.sessionId);
   }
 
-  // Map: sessionId → { byId: Map<bookingId, checkedIn>, byEmail: Map<email, checkedIn> }
   const checkinMap = new Map<
     string,
     { byId: Map<number, boolean>; byEmail: Map<string, boolean> }
   >();
 
-  for (const sid of sessionIds) {
-    try {
+  // Parallel fetch all session bookings
+  const sessionResults = await Promise.allSettled(
+    [...sessionIds].map(async sid => {
       const resp = await momence.getSessionBookings(parseInt(sid, 10), {
         page: 0,
         pageSize: 200,
@@ -256,21 +254,21 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
       const byEmail = new Map<string, boolean>();
       for (const booking of resp.payload) {
         byId.set(booking.id, booking.checkedIn || false);
-        // Fallback: also index by email for bookings without momenceBookingId
-        // Momence API returns member data but our interface doesn't type it
         const raw = booking as unknown as Record<string, unknown>;
         const member = raw['member'] as Record<string, unknown> | undefined;
         const email = (member?.['email'] as string) || '';
-        if (email) {
-          byEmail.set(email.toLowerCase(), booking.checkedIn || false);
-        }
+        if (email) byEmail.set(email.toLowerCase(), booking.checkedIn || false);
       }
-      checkinMap.set(sid, { byId, byEmail });
-    } catch (e) {
-      console.warn(
-        `[admin-bookings] Check-in fetch failed for session ${sid}:`,
-        e instanceof Error ? e.message : e
-      );
+      return { sid, byId, byEmail };
+    })
+  );
+
+  for (const result of sessionResults) {
+    if (result.status === 'fulfilled') {
+      checkinMap.set(result.value.sid, {
+        byId: result.value.byId,
+        byEmail: result.value.byEmail,
+      });
     }
   }
 
@@ -279,7 +277,6 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
     if (b.sessionId) {
       const sessionData = checkinMap.get(b.sessionId);
       if (sessionData) {
-        // Try by momenceBookingId first, then fallback to email
         if (b.momenceBookingId) {
           b.checkedIn = sessionData.byId.get(b.momenceBookingId) ?? false;
         } else if (b.email) {
@@ -287,21 +284,19 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
         }
       }
     }
-    // If reconciliation already marked as attended, also set checkedIn true
     if (b.reconciliationStatus === 'attended') {
       b.checkedIn = true;
     }
   }
 
   // ------------------------------------------------------------------
-  // 2. MEMBERSHIP STATUS + CHECK-IN FALLBACK: batch by unique email
+  // 2. MEMBERSHIP + CHECK-IN FALLBACK: fetch all emails IN PARALLEL
   // ------------------------------------------------------------------
   const uniqueEmails = new Set<string>();
   for (const b of allBookings) {
     if (b.email) uniqueEmails.add(b.email.toLowerCase());
   }
 
-  // Identify bookings that still need check-in data (no sessionId = Customer Leads)
   const needsCheckinByEmail = new Set<string>();
   for (const b of allBookings) {
     if (!b.sessionId && !b.checkedIn && b.email) {
@@ -309,13 +304,12 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
     }
   }
 
-  // Map: email → { status, name }
   const membershipMap = new Map<string, { status: 'none' | 'active'; name: string | null }>();
-  // Map: email → Map<classDate, checkedIn> (for Customer Leads fallback)
   const emailCheckinMap = new Map<string, Map<string, boolean>>();
 
-  for (const email of uniqueEmails) {
-    try {
+  // Process all emails in parallel (each email: search → membership + optionally check-in)
+  const emailResults = await Promise.allSettled(
+    [...uniqueEmails].map(async email => {
       const searchResult = await momence.searchMembers({
         page: 0,
         pageSize: 5,
@@ -323,60 +317,56 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
       });
 
       const member = searchResult.payload.find(m => m.email?.toLowerCase() === email);
-
       if (!member) {
-        membershipMap.set(email, { status: 'none', name: null });
-        continue;
+        return { email, membership: { status: 'none' as const, name: null }, checkinDates: null };
       }
 
-      // Check active memberships
-      const memberships = await momence.getMemberBoughtMemberships(member.id, {
-        page: 0,
-        pageSize: 10,
-      });
+      // Fetch membership + check-in in parallel
+      const [membershipsResult, checkinResult] = await Promise.allSettled([
+        momence.getMemberBoughtMemberships(member.id, { page: 0, pageSize: 10 }),
+        needsCheckinByEmail.has(email)
+          ? momence.getMemberSessionBookings(member.id, { page: 0, pageSize: 30 })
+          : Promise.resolve(null),
+      ]);
 
-      const activeMemberships = memberships.payload.filter(m => !m.isFrozen);
-
-      if (activeMemberships.length > 0) {
-        const first = activeMemberships[0];
-        membershipMap.set(email, {
-          status: 'active',
-          name: first?.membership?.name || null,
-        });
-      } else {
-        membershipMap.set(email, { status: 'none', name: null });
-      }
-
-      // For Customer Leads without sessionId: fetch member's session bookings to get check-in
-      if (needsCheckinByEmail.has(email)) {
-        try {
-          const memberBookings = await momence.getMemberSessionBookings(member.id, {
-            page: 0,
-            pageSize: 30,
-          });
-          const dateMap = new Map<string, boolean>();
-          for (const mb of memberBookings.payload) {
-            if (mb.session?.startsAt) {
-              const dateStr = mb.session.startsAt.split('T')[0] || '';
-              // Use most recent check-in status per date (a member may have multiple bookings)
-              if (mb.checkedIn) {
-                dateMap.set(dateStr, true);
-              } else if (!dateMap.has(dateStr)) {
-                dateMap.set(dateStr, false);
-              }
-            }
-          }
-          emailCheckinMap.set(email, dateMap);
-        } catch {
-          // Non-blocking: check-in fallback is best-effort
+      // Process membership
+      let membership: { status: 'none' | 'active'; name: string | null } = {
+        status: 'none',
+        name: null,
+      };
+      if (membershipsResult.status === 'fulfilled') {
+        const active = membershipsResult.value.payload.filter(m => !m.isFrozen);
+        if (active.length > 0) {
+          membership = { status: 'active', name: active[0]?.membership?.name || null };
         }
       }
-    } catch (e) {
-      console.warn(
-        `[admin-bookings] Membership check failed for ${email.slice(0, 4)}...:`,
-        e instanceof Error ? e.message : e
-      );
-      // Leave as 'unknown'
+
+      // Process check-in dates
+      let checkinDates: Map<string, boolean> | null = null;
+      if (
+        checkinResult.status === 'fulfilled' &&
+        checkinResult.value &&
+        'payload' in checkinResult.value
+      ) {
+        checkinDates = new Map<string, boolean>();
+        for (const mb of checkinResult.value.payload) {
+          if (mb.session?.startsAt) {
+            const dateStr = mb.session.startsAt.split('T')[0] || '';
+            if (mb.checkedIn) checkinDates.set(dateStr, true);
+            else if (!checkinDates.has(dateStr)) checkinDates.set(dateStr, false);
+          }
+        }
+      }
+
+      return { email, membership, checkinDates };
+    })
+  );
+
+  for (const result of emailResults) {
+    if (result.status === 'fulfilled') {
+      const { email, membership, checkinDates } = result.value;
+      membershipMap.set(email, membership);
+      if (checkinDates) emailCheckinMap.set(email, checkinDates);
     }
   }
 
@@ -388,8 +378,6 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
       b.membershipStatus = info.status;
       b.membershipName = info.name;
     }
-
-    // Check-in fallback for Customer Leads (no sessionId)
     if (!b.checkedIn && !b.sessionId && emailKey) {
       const dateMap = emailCheckinMap.get(emailKey);
       if (dateMap && b.classDate) {
@@ -401,7 +389,7 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
 
   console.log(
     `[admin-bookings] Enriched ${allBookings.length} bookings: ` +
-      `${sessionIds.size} sessions checked, ${uniqueEmails.size} emails checked`
+      `${sessionIds.size} sessions, ${uniqueEmails.size} emails (parallel)`
   );
 }
 
