@@ -258,61 +258,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const pageSize = Math.min(100, Math.max(1, Number(pageSizeParam) || 50));
 
     // =========================================================================
-    // 1. FETCH ALL BOOKING IDs (from global index + reminders sets)
+    // 1. FETCH ALL BOOKING IDs (comprehensive: global index + full SCAN)
     // =========================================================================
 
-    // Source 1: global index
+    // Source 1: global index (fast, but may be incomplete for old bookings)
     const fromGlobalIndex = await redis.smembers('all_trial_booking_ids');
     const allIdSet = new Set(fromGlobalIndex);
 
-    // Source 2: scan reminders:* keys (belt & suspenders — many bookings only live here)
-    const reminderKeys: string[] = [];
+    // Source 2: ALWAYS scan booking_details:* keys to catch old bookings
+    // created before all_trial_booking_ids was added to reservar.ts.
+    // reminders:* keys expire after 7 days, so can't be used for history.
     let scanCursor = '0';
     do {
-      const [nextCursor, keys] = await redis.scan(scanCursor, 'MATCH', 'reminders:*', 'COUNT', 200);
+      const [nextCursor, keys] = await redis.scan(
+        scanCursor,
+        'MATCH',
+        'booking_details:*',
+        'COUNT',
+        200
+      );
       scanCursor = nextCursor;
-      reminderKeys.push(...keys);
+      for (const key of keys) {
+        const id = key.replace('booking_details:', '');
+        if (id) allIdSet.add(id);
+      }
     } while (scanCursor !== '0');
-
-    if (reminderKeys.length > 0) {
-      const rPipeline = redis.pipeline();
-      for (const key of reminderKeys) {
-        rPipeline.smembers(key);
-      }
-      const rResults = await rPipeline.exec();
-      if (rResults) {
-        for (const [err, members] of rResults as [Error | null, string[]][]) {
-          if (!err && Array.isArray(members)) {
-            for (const id of members) allIdSet.add(id);
-          }
-        }
-      }
-    }
-
-    // Source 3: fallback SCAN for booking_details:* if both sources are empty
-    if (allIdSet.size === 0) {
-      let cursor2 = '0';
-      do {
-        const [nextCursor, keys] = await redis.scan(
-          cursor2,
-          'MATCH',
-          'booking_details:*',
-          'COUNT',
-          200
-        );
-        cursor2 = nextCursor;
-        for (const key of keys) {
-          const id = key.replace('booking_details:', '');
-          if (id) allIdSet.add(id);
-        }
-      } while (cursor2 !== '0');
-    }
 
     // Self-heal: update global index with any newly discovered IDs
     const fromGlobalSet = new Set(fromGlobalIndex);
     const newIds = Array.from(allIdSet).filter(id => !fromGlobalSet.has(id));
     if (newIds.length > 0) {
       redis.sadd('all_trial_booking_ids', ...newIds).catch(() => {});
+      console.log(`[admin-leads] Self-healed: added ${newIds.length} missing IDs to global index`);
     }
 
     const allEventIds = Array.from(allIdSet);
