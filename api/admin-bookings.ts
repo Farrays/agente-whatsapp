@@ -215,18 +215,52 @@ function toAdminBooking(details: BookingDetails, fallbackDate?: string): AdminBo
  *
  * Both are batched to minimize API calls. Failures are non-blocking (defaults remain).
  */
-async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promise<void> {
+interface EnrichmentDebug {
+  momenceAuth: boolean;
+  sessionsQueried: number;
+  sessionsFulfilled: number;
+  sessionErrors: string[];
+  sessionCheckinCounts: Record<string, { total: number; checkedIn: number }>;
+  emailsQueried: number;
+  emailsFulfilled: number;
+  emailErrors: string[];
+  bookingDetails: Array<{
+    name: string;
+    email: string;
+    sessionId: string | null;
+    momenceBookingId: number | null;
+    checkedInResult: boolean;
+    matchMethod: string;
+  }>;
+}
+
+async function enrichBookingsWithMomenceData(
+  allBookings: AdminBooking[]
+): Promise<EnrichmentDebug> {
+  const debug: EnrichmentDebug = {
+    momenceAuth: false,
+    sessionsQueried: 0,
+    sessionsFulfilled: 0,
+    sessionErrors: [],
+    sessionCheckinCounts: {},
+    emailsQueried: 0,
+    emailsFulfilled: 0,
+    emailErrors: [],
+    bookingDetails: [],
+  };
+
   let momence: MomenceApiClient;
   try {
     momence = new MomenceApiClient(null);
     // Validate credentials early (also warms up token cache for parallel calls)
     await momence.getAccessToken();
+    debug.momenceAuth = true;
   } catch (e) {
     console.warn(
       '[admin-bookings] Momence unavailable, skipping enrichment:',
       e instanceof Error ? e.message : e
     );
-    return;
+    return debug;
   }
 
   // ------------------------------------------------------------------
@@ -242,6 +276,8 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
     { byId: Map<number, boolean>; byEmail: Map<string, boolean> }
   >();
 
+  debug.sessionsQueried = sessionIds.size;
+
   // Parallel fetch all session bookings
   const sessionResults = await Promise.allSettled(
     [...sessionIds].map(async sid => {
@@ -252,41 +288,68 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
       });
       const byId = new Map<number, boolean>();
       const byEmail = new Map<string, boolean>();
+      let checkedInCount = 0;
       for (const booking of resp.payload) {
         byId.set(booking.id, booking.checkedIn || false);
+        if (booking.checkedIn) checkedInCount++;
         const raw = booking as unknown as Record<string, unknown>;
         const member = raw['member'] as Record<string, unknown> | undefined;
         const email = (member?.['email'] as string) || '';
         if (email) byEmail.set(email.toLowerCase(), booking.checkedIn || false);
       }
+      debug.sessionCheckinCounts[sid] = {
+        total: resp.payload.length,
+        checkedIn: checkedInCount,
+      };
       return { sid, byId, byEmail };
     })
   );
 
   for (const result of sessionResults) {
     if (result.status === 'fulfilled') {
+      debug.sessionsFulfilled++;
       checkinMap.set(result.value.sid, {
         byId: result.value.byId,
         byEmail: result.value.byEmail,
       });
+    } else {
+      debug.sessionErrors.push(result.reason?.message || String(result.reason));
     }
   }
 
   // Apply check-in data
   for (const b of allBookings) {
+    let matchMethod = 'none';
     if (b.sessionId) {
       const sessionData = checkinMap.get(b.sessionId);
       if (sessionData) {
         if (b.momenceBookingId) {
           b.checkedIn = sessionData.byId.get(b.momenceBookingId) ?? false;
+          matchMethod = `byId(${b.momenceBookingId})=${b.checkedIn}`;
         } else if (b.email) {
           b.checkedIn = sessionData.byEmail.get(b.email.toLowerCase()) ?? false;
+          matchMethod = `byEmail(${b.email})=${b.checkedIn}`;
+        } else {
+          matchMethod = 'no-id-no-email';
         }
+      } else {
+        matchMethod = `session-${b.sessionId}-not-in-map`;
       }
+    } else {
+      matchMethod = 'no-sessionId';
     }
     if (b.reconciliationStatus === 'attended') {
       b.checkedIn = true;
+      matchMethod += '+reconciled';
     }
+    debug.bookingDetails.push({
+      name: `${b.firstName} ${b.lastName}`,
+      email: b.email,
+      sessionId: b.sessionId,
+      momenceBookingId: b.momenceBookingId,
+      checkedInResult: b.checkedIn,
+      matchMethod,
+    });
   }
 
   // ------------------------------------------------------------------
@@ -306,6 +369,8 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
 
   const membershipMap = new Map<string, { status: 'none' | 'active'; name: string | null }>();
   const emailCheckinMap = new Map<string, Map<string, boolean>>();
+
+  debug.emailsQueried = uniqueEmails.size;
 
   // Process all emails in parallel (each email: search → membership + optionally check-in)
   const emailResults = await Promise.allSettled(
@@ -364,9 +429,12 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
 
   for (const result of emailResults) {
     if (result.status === 'fulfilled') {
+      debug.emailsFulfilled++;
       const { email, membership, checkinDates } = result.value;
       membershipMap.set(email, membership);
       if (checkinDates) emailCheckinMap.set(email, checkinDates);
+    } else {
+      debug.emailErrors.push(result.reason?.message || String(result.reason));
     }
   }
 
@@ -389,8 +457,11 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
 
   console.log(
     `[admin-bookings] Enriched ${allBookings.length} bookings: ` +
-      `${sessionIds.size} sessions, ${uniqueEmails.size} emails (parallel)`
+      `${sessionIds.size} sessions (${debug.sessionsFulfilled} ok), ` +
+      `${uniqueEmails.size} emails (${debug.emailsFulfilled} ok)`
   );
+
+  return debug;
 }
 
 // ============================================================================
@@ -592,9 +663,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       allBookingsFlat.push(...dayBookings);
     }
 
+    let enrichmentDebug: EnrichmentDebug | null = null;
     if (allBookingsFlat.length > 0) {
       try {
-        await enrichBookingsWithMomenceData(allBookingsFlat);
+        enrichmentDebug = await enrichBookingsWithMomenceData(allBookingsFlat);
       } catch (e) {
         console.warn(
           '[admin-bookings] Enrichment failed (non-blocking):',
@@ -674,6 +746,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         dateRange: { from: responseDates[0], to: responseDates[responseDates.length - 1] },
       },
       days,
+      _enrichmentDebug: enrichmentDebug,
     });
   } catch (error) {
     console.error('[admin-bookings] Error:', error);
