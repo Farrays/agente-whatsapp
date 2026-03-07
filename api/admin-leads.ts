@@ -134,6 +134,13 @@ function validateAuth(req: VercelRequest): boolean {
 // HELPERS
 // ============================================================================
 
+const SPAIN_TIMEZONE = 'Europe/Madrid';
+const BOOKING_TTL_SECONDS = 90 * 24 * 60 * 60;
+
+function getDateInTimezone(date: Date, tz: string): string {
+  return date.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
+}
+
 function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-+()]/g, '');
 }
@@ -251,34 +258,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const pageSize = Math.min(100, Math.max(1, Number(pageSizeParam) || 50));
 
     // =========================================================================
-    // 1. FETCH ALL BOOKING IDs
+    // 1. FETCH ALL BOOKING IDs (from global index + reminders sets)
     // =========================================================================
 
-    let allEventIds = await redis.smembers('all_trial_booking_ids');
+    // Source 1: global index
+    const fromGlobalIndex = await redis.smembers('all_trial_booking_ids');
+    const allIdSet = new Set(fromGlobalIndex);
 
-    if (allEventIds.length === 0) {
-      const scannedIds: string[] = [];
-      let cursor = '0';
+    // Source 2: scan reminders:* keys (belt & suspenders — many bookings only live here)
+    const reminderKeys: string[] = [];
+    let scanCursor = '0';
+    do {
+      const [nextCursor, keys] = await redis.scan(scanCursor, 'MATCH', 'reminders:*', 'COUNT', 200);
+      scanCursor = nextCursor;
+      reminderKeys.push(...keys);
+    } while (scanCursor !== '0');
+
+    if (reminderKeys.length > 0) {
+      const rPipeline = redis.pipeline();
+      for (const key of reminderKeys) {
+        rPipeline.smembers(key);
+      }
+      const rResults = await rPipeline.exec();
+      if (rResults) {
+        for (const [err, members] of rResults as [Error | null, string[]][]) {
+          if (!err && Array.isArray(members)) {
+            for (const id of members) allIdSet.add(id);
+          }
+        }
+      }
+    }
+
+    // Source 3: fallback SCAN for booking_details:* if both sources are empty
+    if (allIdSet.size === 0) {
+      let cursor2 = '0';
       do {
         const [nextCursor, keys] = await redis.scan(
-          cursor,
+          cursor2,
           'MATCH',
           'booking_details:*',
           'COUNT',
           200
         );
-        cursor = nextCursor;
+        cursor2 = nextCursor;
         for (const key of keys) {
           const id = key.replace('booking_details:', '');
-          if (id) scannedIds.push(id);
+          if (id) allIdSet.add(id);
         }
-      } while (cursor !== '0');
-
-      if (scannedIds.length > 0) {
-        await redis.sadd('all_trial_booking_ids', ...scannedIds);
-        allEventIds = scannedIds;
-      }
+      } while (cursor2 !== '0');
     }
+
+    // Self-heal: update global index with any newly discovered IDs
+    const fromGlobalSet = new Set(fromGlobalIndex);
+    const newIds = Array.from(allIdSet).filter(id => !fromGlobalSet.has(id));
+    if (newIds.length > 0) {
+      redis.sadd('all_trial_booking_ids', ...newIds).catch(() => {});
+    }
+
+    const allEventIds = Array.from(allIdSet);
 
     if (allEventIds.length === 0) {
       res.status(200).json({
@@ -331,6 +368,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     // =========================================================================
+    // 2b. RETROACTIVE RECONCILIATION (catch-up for bookings the cron missed)
+    // =========================================================================
+
+    const todayStr = getDateInTimezone(new Date(), SPAIN_TIMEZONE);
+
+    for (const b of allBookings) {
+      const bookingDate = (b.classDate || '').replace(/T.*$/, '');
+      if (!bookingDate || bookingDate >= todayStr) continue;
+      if (b.reconciliationStatus && b.reconciliationStatus !== 'pending') continue;
+
+      let newStatus: string | null = null;
+      if (b.checkedIn && (b.status || 'confirmed') === 'confirmed') {
+        newStatus = 'attended';
+      } else if (!b.checkedIn && (b.status || 'confirmed') === 'confirmed') {
+        newStatus = 'no_show';
+      } else if (b.status === 'cancelled') {
+        newStatus = 'cancelled_late';
+      }
+
+      if (newStatus) {
+        b.reconciliationStatus = newStatus as BookingDetails['reconciliationStatus'];
+        // Persist to Redis (fire-and-forget)
+        redis
+          .get(`booking_details:${b.eventId}`)
+          .then(raw => {
+            if (!raw) return;
+            const details = JSON.parse(raw);
+            details.reconciliationStatus = newStatus;
+            details.reconciliationProcessed = true;
+            details.reconciliationTimestamp = new Date().toISOString();
+            return redis.setex(
+              `booking_details:${b.eventId}`,
+              BOOKING_TTL_SECONDS,
+              JSON.stringify(details)
+            );
+          })
+          .catch(() => {});
+      }
+    }
+
+    // =========================================================================
     // 3. GROUP BY EMAIL → BUILD LEADS
     // =========================================================================
 
@@ -364,7 +442,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // 4. CROSS-REFERENCE WITH lead:{email} DATA
     // =========================================================================
 
-    const emails = [...leadMap.keys()];
+    const emails = Array.from(leadMap.keys());
     const leadDataMap = new Map<string, { estilo: string | null; sourceId: string | null }>();
 
     if (emails.length > 0) {
@@ -398,7 +476,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // =========================================================================
 
     const phoneToEmail = new Map<string, string>();
-    for (const [email, data] of leadMap) {
+    for (const [email, data] of Array.from(leadMap.entries())) {
       if (data.phone) {
         const normalized = normalizePhone(data.phone);
         const withPrefix = normalized.startsWith('34') ? normalized : `34${normalized}`;
@@ -409,7 +487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const conversationEmails = new Set<string>();
     if (phoneToEmail.size > 0) {
       const convPipeline = redis.pipeline();
-      const phoneList = [...phoneToEmail.keys()];
+      const phoneList = Array.from(phoneToEmail.keys());
       for (const phone of phoneList) {
         convPipeline.zscore('conversations:active', phone);
       }
@@ -431,7 +509,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     let leads: Lead[] = [];
 
-    for (const [email, data] of leadMap) {
+    for (const [email, data] of Array.from(leadMap.entries())) {
       const sortedBookings = data.bookings.sort((a, b) =>
         (a.classDate || '').localeCompare(b.classDate || '')
       );
@@ -524,19 +602,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     leads.sort((a, b) => b.lastActivityDate.localeCompare(a.lastActivityDate));
 
     // =========================================================================
-    // 10. PAGINATE
+    // 10. MOMENCE ENRICHMENT (ALL leads, before summary + pagination)
     // =========================================================================
 
-    const totalBeforePagination = leads.length;
-    const paginatedLeads = leads.slice(page * pageSize, (page + 1) * pageSize);
-
-    // =========================================================================
-    // 11. MOMENCE ENRICHMENT (only paginated subset)
-    // =========================================================================
-
-    if (paginatedLeads.length > 0) {
+    if (leads.length > 0) {
       try {
-        await enrichLeadsWithMembership(paginatedLeads);
+        await enrichLeadsWithMembership(leads);
       } catch (e) {
         console.warn(
           '[admin-leads] Momence enrichment failed:',
@@ -545,58 +616,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
     }
 
-    // Apply membership filter AFTER enrichment
-    let finalLeads = paginatedLeads;
-    let finalTotal = totalBeforePagination;
+    // =========================================================================
+    // 11. APPLY MEMBERSHIP FILTER (after enrichment)
+    // =========================================================================
 
     if (statusFilter === 'has_membership') {
-      finalLeads = paginatedLeads.filter(l => l.membershipStatus === 'active');
-      finalTotal = finalLeads.length;
+      leads = leads.filter(l => l.membershipStatus === 'active');
     }
 
     // =========================================================================
-    // 12. CALCULATE SUMMARY
+    // 12. CALCULATE SUMMARY (from ALL filtered leads, before pagination)
     // =========================================================================
 
+    const totalAfterFilters = leads.length;
+
     const summary: LeadsSummary = {
-      totalLeads: totalBeforePagination,
+      totalLeads: totalAfterFilters,
       converted: leads.filter(l => l.attended > 0).length,
       noShowOnly: leads.filter(l => l.noShow > 0 && l.attended === 0).length,
-      withMembership: finalLeads.filter(l => l.membershipStatus === 'active').length,
+      withMembership: leads.filter(l => l.membershipStatus === 'active').length,
       avgBookingsPerLead:
-        totalBeforePagination > 0
+        totalAfterFilters > 0
           ? Math.round(
-              (leads.reduce((sum, l) => sum + l.totalBookings, 0) / totalBeforePagination) * 10
+              (leads.reduce((sum, l) => sum + l.totalBookings, 0) / totalAfterFilters) * 10
             ) / 10
           : 0,
       conversionRate:
-        totalBeforePagination > 0
-          ? Math.round((leads.filter(l => l.attended > 0).length / totalBeforePagination) * 100)
+        totalAfterFilters > 0
+          ? Math.round((leads.filter(l => l.attended > 0).length / totalAfterFilters) * 100)
           : 0,
       altaRate:
-        totalBeforePagination > 0
+        totalAfterFilters > 0
           ? Math.round(
-              (finalLeads.filter(l => l.membershipStatus === 'active').length /
-                totalBeforePagination) *
-                100
+              (leads.filter(l => l.membershipStatus === 'active').length / totalAfterFilters) * 100
             )
           : 0,
     };
 
     // =========================================================================
-    // 13. RESPOND
+    // 13. PAGINATE
+    // =========================================================================
+
+    const paginatedLeads = leads.slice(page * pageSize, (page + 1) * pageSize);
+
+    // =========================================================================
+    // 14. RESPOND
     // =========================================================================
 
     console.log(
-      `[admin-leads] ${totalBeforePagination} leads, page ${page}, ` +
-        `${finalLeads.length} returned, search="${searchQuery}", status="${statusFilter}"`
+      `[admin-leads] ${totalAfterFilters} leads, page ${page}, ` +
+        `${paginatedLeads.length} returned, search="${searchQuery}", status="${statusFilter}"`
     );
 
     res.status(200).json({
       success: true,
       summary,
-      leads: finalLeads,
-      total: finalTotal,
+      leads: paginatedLeads,
+      total: totalAfterFilters,
       page,
       pageSize,
     });
