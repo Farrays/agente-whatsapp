@@ -676,6 +676,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     }
 
     // =========================================================================
+    // RETROACTIVE RECONCILIATION (catch-up for bookings the cron missed)
+    // =========================================================================
+    const todayStr = getDateInTimezone(new Date(), SPAIN_TIMEZONE);
+    const BOOKING_TTL_SECONDS = 90 * 24 * 60 * 60;
+
+    for (const b of allBookingsFlat) {
+      // Only reconcile past classes that are still pending
+      if (b.classDate >= todayStr) continue;
+      if (b.reconciliationStatus !== 'pending') continue;
+
+      if (b.checkedIn && b.status === 'confirmed') {
+        b.reconciliationStatus = 'attended';
+        // Persist to Redis (fire-and-forget)
+        redis
+          .get(`booking_details:${b.eventId}`)
+          .then(raw => {
+            if (!raw) return;
+            const details = JSON.parse(raw);
+            details.reconciliationStatus = 'attended';
+            details.reconciliationProcessed = true;
+            details.reconciliationTimestamp = new Date().toISOString();
+            return redis.setex(
+              `booking_details:${b.eventId}`,
+              BOOKING_TTL_SECONDS,
+              JSON.stringify(details)
+            );
+          })
+          .catch(() => {});
+      } else if (!b.checkedIn && b.status === 'confirmed') {
+        b.reconciliationStatus = 'no_show';
+        redis
+          .get(`booking_details:${b.eventId}`)
+          .then(raw => {
+            if (!raw) return;
+            const details = JSON.parse(raw);
+            details.reconciliationStatus = 'no_show';
+            details.reconciliationProcessed = true;
+            details.reconciliationTimestamp = new Date().toISOString();
+            return redis.setex(
+              `booking_details:${b.eventId}`,
+              BOOKING_TTL_SECONDS,
+              JSON.stringify(details)
+            );
+          })
+          .catch(() => {});
+      } else if (b.status === 'cancelled') {
+        b.reconciliationStatus = 'cancelled_late';
+        redis
+          .get(`booking_details:${b.eventId}`)
+          .then(raw => {
+            if (!raw) return;
+            const details = JSON.parse(raw);
+            details.reconciliationStatus = 'cancelled_late';
+            details.reconciliationProcessed = true;
+            details.reconciliationTimestamp = new Date().toISOString();
+            return redis.setex(
+              `booking_details:${b.eventId}`,
+              BOOKING_TTL_SECONDS,
+              JSON.stringify(details)
+            );
+          })
+          .catch(() => {});
+      }
+    }
+
+    // =========================================================================
     // BUILD RESPONSE
     // =========================================================================
 
