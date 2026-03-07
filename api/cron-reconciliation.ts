@@ -232,7 +232,7 @@ async function reconcileBooking(
     try {
       const sessionBookings = await momenceClient.getSessionBookings(
         parseInt(booking.sessionId, 10),
-        { page: 1, pageSize: 100, includeCancelled: true }
+        { page: 0, pageSize: 100, includeCancelled: true }
       );
 
       const ourBooking = sessionBookings.payload.find(b => b.id === booking.momenceBookingId);

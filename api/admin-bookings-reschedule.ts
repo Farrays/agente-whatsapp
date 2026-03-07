@@ -429,7 +429,7 @@ export async function rescheduleBooking(
   let memberId: number | undefined;
   try {
     const members = await client.searchMembers({
-      page: 1,
+      page: 0,
       pageSize: 1,
       filter: { email: booking.email },
     });

@@ -248,7 +248,7 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
   for (const sid of sessionIds) {
     try {
       const resp = await momence.getSessionBookings(parseInt(sid, 10), {
-        page: 1,
+        page: 0,
         pageSize: 200,
         includeCancelled: true,
       });
@@ -294,15 +294,25 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
   }
 
   // ------------------------------------------------------------------
-  // 2. MEMBERSHIP STATUS: batch by unique email
+  // 2. MEMBERSHIP STATUS + CHECK-IN FALLBACK: batch by unique email
   // ------------------------------------------------------------------
   const uniqueEmails = new Set<string>();
   for (const b of allBookings) {
     if (b.email) uniqueEmails.add(b.email.toLowerCase());
   }
 
+  // Identify bookings that still need check-in data (no sessionId = Customer Leads)
+  const needsCheckinByEmail = new Set<string>();
+  for (const b of allBookings) {
+    if (!b.sessionId && !b.checkedIn && b.email) {
+      needsCheckinByEmail.add(b.email.toLowerCase());
+    }
+  }
+
   // Map: email → { status, name }
   const membershipMap = new Map<string, { status: 'none' | 'active'; name: string | null }>();
+  // Map: email → Map<classDate, checkedIn> (for Customer Leads fallback)
+  const emailCheckinMap = new Map<string, Map<string, boolean>>();
 
   for (const email of uniqueEmails) {
     try {
@@ -336,6 +346,31 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
       } else {
         membershipMap.set(email, { status: 'none', name: null });
       }
+
+      // For Customer Leads without sessionId: fetch member's session bookings to get check-in
+      if (needsCheckinByEmail.has(email)) {
+        try {
+          const memberBookings = await momence.getMemberSessionBookings(member.id, {
+            page: 0,
+            pageSize: 30,
+          });
+          const dateMap = new Map<string, boolean>();
+          for (const mb of memberBookings.payload) {
+            if (mb.session?.startsAt) {
+              const dateStr = mb.session.startsAt.split('T')[0] || '';
+              // Use most recent check-in status per date (a member may have multiple bookings)
+              if (mb.checkedIn) {
+                dateMap.set(dateStr, true);
+              } else if (!dateMap.has(dateStr)) {
+                dateMap.set(dateStr, false);
+              }
+            }
+          }
+          emailCheckinMap.set(email, dateMap);
+        } catch {
+          // Non-blocking: check-in fallback is best-effort
+        }
+      }
     } catch (e) {
       console.warn(
         `[admin-bookings] Membership check failed for ${email.slice(0, 4)}...:`,
@@ -345,13 +380,22 @@ async function enrichBookingsWithMomenceData(allBookings: AdminBooking[]): Promi
     }
   }
 
-  // Apply membership data
+  // Apply membership data + check-in fallback
   for (const b of allBookings) {
     const emailKey = b.email?.toLowerCase();
     const info = emailKey ? membershipMap.get(emailKey) : undefined;
     if (info) {
       b.membershipStatus = info.status;
       b.membershipName = info.name;
+    }
+
+    // Check-in fallback for Customer Leads (no sessionId)
+    if (!b.checkedIn && !b.sessionId && emailKey) {
+      const dateMap = emailCheckinMap.get(emailKey);
+      if (dateMap && b.classDate) {
+        const dateOnly = b.classDate.split('T')[0] || b.classDate;
+        b.checkedIn = dateMap.get(dateOnly) ?? false;
+      }
     }
   }
 
