@@ -579,39 +579,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     leads.sort((a, b) => b.lastActivityDate.localeCompare(a.lastActivityDate));
 
     // =========================================================================
-    // 10. MOMENCE ENRICHMENT (ALL leads, before summary + pagination)
-    // =========================================================================
-
-    if (leads.length > 0) {
-      try {
-        await enrichLeadsWithMembership(leads);
-      } catch (e) {
-        console.warn(
-          '[admin-leads] Momence enrichment failed:',
-          e instanceof Error ? e.message : e
-        );
-      }
-    }
-
-    // =========================================================================
-    // 11. APPLY MEMBERSHIP FILTER (after enrichment)
-    // =========================================================================
-
-    if (statusFilter === 'has_membership') {
-      leads = leads.filter(l => l.membershipStatus === 'active');
-    }
-
-    // =========================================================================
-    // 12. CALCULATE SUMMARY (from ALL filtered leads, before pagination)
+    // 10. CALCULATE SUMMARY (from ALL leads, before pagination — no Momence needed)
     // =========================================================================
 
     const totalAfterFilters = leads.length;
 
+    // Summary stats from Redis data (accurate for attendance, bookings, etc.)
+    // withMembership/altaRate will be updated after Momence enrichment of current page
     const summary: LeadsSummary = {
       totalLeads: totalAfterFilters,
       converted: leads.filter(l => l.attended > 0).length,
       noShowOnly: leads.filter(l => l.noShow > 0 && l.attended === 0).length,
-      withMembership: leads.filter(l => l.membershipStatus === 'active').length,
+      withMembership: 0,
       avgBookingsPerLead:
         totalAfterFilters > 0
           ? Math.round(
@@ -622,22 +601,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         totalAfterFilters > 0
           ? Math.round((leads.filter(l => l.attended > 0).length / totalAfterFilters) * 100)
           : 0,
-      altaRate:
-        totalAfterFilters > 0
-          ? Math.round(
-              (leads.filter(l => l.membershipStatus === 'active').length / totalAfterFilters) * 100
-            )
-          : 0,
+      altaRate: 0,
     };
 
     // =========================================================================
-    // 13. PAGINATE
+    // 11. PAGINATE
     // =========================================================================
 
-    const paginatedLeads = leads.slice(page * pageSize, (page + 1) * pageSize);
+    let paginatedLeads = leads.slice(page * pageSize, (page + 1) * pageSize);
 
     // =========================================================================
-    // 14. RESPOND
+    // 12. MOMENCE ENRICHMENT (only paginated subset — max 100 API calls)
+    // =========================================================================
+
+    if (paginatedLeads.length > 0) {
+      try {
+        await enrichLeadsWithMembership(paginatedLeads);
+      } catch (e) {
+        console.warn(
+          '[admin-leads] Momence enrichment failed:',
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
+
+    // Update membership KPIs from enriched page data
+    const enrichedWithMembership = paginatedLeads.filter(
+      l => l.membershipStatus === 'active'
+    ).length;
+    summary.withMembership = enrichedWithMembership;
+    // altaRate is approximate (based on current page enrichment)
+    summary.altaRate =
+      paginatedLeads.length > 0
+        ? Math.round((enrichedWithMembership / paginatedLeads.length) * 100)
+        : 0;
+
+    // Apply membership filter AFTER enrichment (for has_membership status filter)
+    if (statusFilter === 'has_membership') {
+      paginatedLeads = paginatedLeads.filter(l => l.membershipStatus === 'active');
+    }
+
+    // =========================================================================
+    // 13. RESPOND
     // =========================================================================
 
     console.log(
@@ -649,7 +654,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       success: true,
       summary,
       leads: paginatedLeads,
-      total: totalAfterFilters,
+      total: statusFilter === 'has_membership' ? paginatedLeads.length : totalAfterFilters,
       page,
       pageSize,
     });
