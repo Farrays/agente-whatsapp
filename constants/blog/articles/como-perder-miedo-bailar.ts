@@ -322,7 +322,7 @@ export const COMO_PERDER_MIEDO_BAILAR_CONFIG: BlogArticleConfig = {
         authorLocation: 'Barcelona',
         textKey: 'blogPerderMiedoBailar_testimonialText',
         rating: 5,
-        datePublished: '2025-10-20',
+        datePublished: '2026-01-16',
         reviewOf: 'course',
       },
     },

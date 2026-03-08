@@ -18,7 +18,7 @@ export const SALSA_RITMO_CONFIG: BlogArticleConfig = {
   category: 'historia',
 
   // === DATES ===
-  datePublished: '2025-01-20',
+  datePublished: '2026-01-16',
   dateModified: '2026-01-16',
 
   // === READING METRICS ===

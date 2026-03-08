@@ -63,14 +63,14 @@ const BLOG_ARTICLES = [
   {
     slug: 'beneficios-bailar-salsa',
     category: 'lifestyle',
-    datePublished: '2025-01-15',
+    datePublished: '2026-01-24',
     titleKey: '10 Beneficios de Bailar Salsa para tu Salud',
     image: '/images/blog/beneficios-salsa/og.jpg',
   },
   {
     slug: 'clases-de-salsa-barcelona',
     category: 'lifestyle',
-    datePublished: '2019-04-24',
+    datePublished: '2026-01-24',
     titleKey: 'Clases de Salsa en Barcelona',
     image: '/images/blog/clases-salsa/og.jpg',
   },
@@ -85,14 +85,14 @@ const BLOG_ARTICLES = [
   {
     slug: 'historia-salsa-barcelona',
     category: 'historia',
-    datePublished: '2025-01-20',
+    datePublished: '2026-01-24',
     titleKey: 'Historia de la Salsa en Barcelona',
     image: '/images/blog/historia-salsa/og.jpg',
   },
   {
     slug: 'historia-bachata-barcelona',
     category: 'historia',
-    datePublished: '2025-01-20',
+    datePublished: '2026-01-24',
     titleKey: 'Historia de la Bachata en Barcelona',
     image: '/images/blog/historia-bachata/og.jpg',
   },
@@ -100,7 +100,7 @@ const BLOG_ARTICLES = [
   {
     slug: 'salsa-ritmo-conquisto-mundo',
     category: 'historia',
-    datePublished: '2025-01-20',
+    datePublished: '2026-01-16',
     titleKey: 'Salsa: El Ritmo que Conquistó el Mundo',
     image: '/images/blog/salsa-ritmo/og.jpg',
   },
@@ -115,7 +115,7 @@ const BLOG_ARTICLES = [
   {
     slug: 'clases-baile-principiantes-barcelona-farrays',
     category: 'tips',
-    datePublished: '2025-01-15',
+    datePublished: '2026-01-24',
     titleKey: 'Clases de Baile para Principiantes en Barcelona',
     image: '/images/blog/clases-principiantes/og.jpg',
   },

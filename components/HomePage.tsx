@@ -261,8 +261,6 @@ const HomePage: React.FC = () => {
         url={`${baseUrl}/${locale}`}
         name={t('pageTitle')}
         description={t('metaDescription')}
-        datePublished="2024-01-01"
-        dateModified="2025-01-24"
         inLanguage={{ es: 'es-ES', ca: 'ca-ES', en: 'en-GB', fr: 'fr-FR' }[locale] || 'es-ES'}
         mainEntityId={`${baseUrl}/#organization`}
         primaryImageUrl={`${baseUrl}/images/og-home.jpg`}

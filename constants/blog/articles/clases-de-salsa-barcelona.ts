@@ -23,7 +23,7 @@ export const CLASES_SALSA_BARCELONA_CONFIG: BlogArticleConfig = {
   authorId: 'mar-guerrero',
 
   // === DATES ===
-  datePublished: '2019-04-24',
+  datePublished: '2026-01-24',
   dateModified: '2026-01-24',
 
   // === READING METRICS ===

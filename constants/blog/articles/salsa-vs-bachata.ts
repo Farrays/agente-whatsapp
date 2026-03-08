@@ -401,7 +401,7 @@ export const SALSA_VS_BACHATA_CONFIG: BlogArticleConfig = {
         authorLocation: 'Barcelona',
         textKey: 'blogSalsaVsBachata_testimonialText',
         rating: 5,
-        datePublished: '2025-11-15',
+        datePublished: '2026-01-15',
         reviewOf: 'course',
       },
     },

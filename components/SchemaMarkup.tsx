@@ -187,8 +187,7 @@ export const WebSiteSchema: React.FC = () => {
       '@id': 'https://www.farrayscenter.com/#organization',
     },
     inLanguage: ['es-ES', 'ca-ES', 'en-GB', 'fr-FR'],
-    datePublished: '2017-01-01',
-    dateModified: '2026-01-25',
+    dateModified: '2026-03-07',
     copyrightYear: 2017,
     copyrightHolder: {
       '@id': 'https://www.farrayscenter.com/#organization',
@@ -1134,7 +1133,7 @@ interface WebPageSchemaProps {
   /** ISO date when page was first published */
   datePublished?: string;
   /** ISO date when page was last modified (important for freshness) */
-  dateModified: string;
+  dateModified?: string;
   /** Language code (es, en, ca, fr) */
   inLanguage: string;
   /** URL of the main entity this page is about (e.g., Course schema @id) */
@@ -1149,7 +1148,7 @@ export const WebPageSchema: React.FC<WebPageSchemaProps> = ({
   url,
   name,
   description,
-  datePublished = '2024-01-01',
+  datePublished,
   dateModified,
   inLanguage,
   mainEntityId,

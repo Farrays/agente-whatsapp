@@ -108,7 +108,6 @@ const PrivacyPolicyPage: React.FC = () => {
     },
     inLanguage:
       locale === 'es' ? 'es-ES' : locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'fr-FR',
-    dateModified: '2025-12-24',
     specialty: 'Privacy Policy',
   };
 

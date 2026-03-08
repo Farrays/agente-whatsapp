@@ -152,7 +152,6 @@ const CookiePolicyPage: React.FC = () => {
     },
     inLanguage:
       locale === 'es' ? 'es-ES' : locale === 'ca' ? 'ca-ES' : locale === 'en' ? 'en-GB' : 'fr-FR',
-    dateModified: '2025-12-25',
     specialty: 'Cookie Policy',
   };
 

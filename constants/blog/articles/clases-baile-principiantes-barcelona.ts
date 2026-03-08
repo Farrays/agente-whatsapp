@@ -21,7 +21,7 @@ export const CLASES_PRINCIPIANTES_CONFIG: BlogArticleConfig = {
   category: 'tips',
 
   // === DATES ===
-  datePublished: '2025-01-15',
+  datePublished: '2026-01-24',
   dateModified: '2026-01-24',
 
   // === READING METRICS ===

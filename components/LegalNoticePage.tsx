@@ -13,7 +13,7 @@ interface LegalSection {
 }
 
 // Last update date - update this when modifying legal content
-const LAST_UPDATED = '2025-01-15';
+const LAST_UPDATED = '2026-01-15';
 
 const LegalNoticePage: React.FC = () => {
   const { t, i18n } = useTranslation([
@@ -409,7 +409,6 @@ const LegalNoticePage: React.FC = () => {
     url: `${baseUrl}/${locale}/aviso-legal`,
     name: t('legalNotice_page_title'),
     description: t('legalNotice_page_description'),
-    dateModified: LAST_UPDATED,
     inLanguage: { es: 'es-ES', ca: 'ca-ES', en: 'en-GB', fr: 'fr-FR' }[locale] || 'es-ES',
     isPartOf: {
       '@type': 'WebSite',

@@ -296,8 +296,6 @@ const HorariosPageV2: React.FC = () => {
       cssSelector: ['h1', '.holographic-text', '[data-speakable="true"]'],
     },
     keywords: t('horariosV2_schema_keywords'), // "horarios clases baile barcelona, schedule dance classes..."
-    dateModified: new Date().toISOString().split('T')[0],
-    datePublished: '2024-01-01',
   };
 
   // Handler para abrir modal

@@ -351,7 +351,7 @@ export const BAILE_SALUD_MENTAL_CONFIG: BlogArticleConfig = {
         authorLocation: 'Barcelona',
         textKey: 'blogBaileSaludMental_testimonialText1',
         rating: 5,
-        datePublished: '2025-11-20',
+        datePublished: '2026-01-17',
         reviewOf: 'school',
       },
     },
