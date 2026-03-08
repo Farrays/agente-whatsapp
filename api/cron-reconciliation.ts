@@ -64,6 +64,9 @@ interface ReconciliationResult {
     | 'no_show_rescheduled'
     | 'no_show_unresolved'
     | 'no_show_notified'
+    | 'late_cancel_rescheduled'
+    | 'late_cancel_unresolved'
+    | 'late_cancel_already_rebooked'
     | 'skipped'
     | 'error';
   details?: string;
@@ -429,6 +432,175 @@ async function sendNoShowFailedNotification(booking: BookingDetails): Promise<vo
 }
 
 // ============================================================================
+// LATE CANCELLATION RECONCILIATION
+// ============================================================================
+
+async function reconcileLateCancellation(
+  redis: Redis,
+  booking: BookingDetails,
+  autoRescheduleCount: { value: number }
+): Promise<ReconciliationResult> {
+  const { eventId } = booking;
+
+  // Skip if already processed
+  if (booking.reconciliationProcessed) {
+    return { eventId, action: 'skipped', details: 'Already processed' };
+  }
+
+  // Safety: only cancelled_late bookings
+  if (booking.reconciliationStatus !== 'cancelled_late') {
+    return { eventId, action: 'skipped', details: 'Not a late cancellation' };
+  }
+
+  // Safety: only trial bookings
+  if (booking.bookingType && booking.bookingType !== 'trial') {
+    return { eventId, action: 'skipped', details: 'Not a trial booking' };
+  }
+
+  // Check if student already rebooked: Laura deletes booking:{email} on cancel,
+  // so if it exists now, student made a NEW booking after cancelling
+  const normalizedEmail = booking.email.toLowerCase().trim();
+  const existingBooking = await redis.get(`booking:${normalizedEmail}`);
+
+  if (existingBooking) {
+    try {
+      const parsed = JSON.parse(existingBooking);
+      // They have a new booking — no need to auto-reschedule
+      booking.reconciliationProcessed = true;
+      booking.reconciliationTimestamp = new Date().toISOString();
+      await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
+
+      return {
+        eventId,
+        action: 'late_cancel_already_rebooked',
+        details: `Student already rebooked (new eventId: ${parsed.eventId || 'unknown'})`,
+      };
+    } catch {
+      // Parse failed, treat as no rebooking
+    }
+  }
+
+  // Check reschedule eligibility (same rules as no-show)
+  const canReschedule =
+    (booking.rescheduleCount || 0) < 1 &&
+    !booking.rescheduledFrom &&
+    autoRescheduleCount.value < MAX_AUTO_RESCHEDULES_PER_RUN;
+
+  if (!canReschedule) {
+    booking.reconciliationProcessed = true;
+    booking.reconciliationTimestamp = new Date().toISOString();
+    await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
+    return {
+      eventId,
+      action: 'late_cancel_unresolved',
+      details: 'Max reschedules reached or already rescheduled',
+    };
+  }
+
+  // Auto-reschedule
+  try {
+    const { rescheduleBooking } = await import('./admin-bookings-reschedule.js');
+    const result = await rescheduleBooking(redis, {
+      eventId,
+      mode: 'next_week',
+      notifyStudent: true,
+      reason: 'cancelled_late',
+    });
+
+    if (result.success) {
+      autoRescheduleCount.value++;
+      // Re-read booking since rescheduleBooking updated it
+      const updatedRaw = await redis.get(`booking_details:${eventId}`);
+      if (updatedRaw) {
+        const updated = JSON.parse(updatedRaw);
+        updated.reconciliationProcessed = true;
+        updated.reconciliationTimestamp = new Date().toISOString();
+        await redis.setex(
+          `booking_details:${eventId}`,
+          BOOKING_TTL_SECONDS,
+          JSON.stringify(updated)
+        );
+      }
+
+      // Record audit event
+      try {
+        const { recordAuditEvent } = await import('./lib/audit.js');
+        await recordAuditEvent(redis, {
+          action: 'booking_late_cancel_rescheduled',
+          eventId,
+          email: booking.email,
+          className: booking.className,
+          classDate: booking.classDate,
+          success: true,
+        });
+      } catch {
+        /* non-blocking */
+      }
+
+      return {
+        eventId,
+        action: 'late_cancel_rescheduled',
+        details: `Rescheduled to ${result.newClassDate} at ${result.newClassTime}`,
+      };
+    }
+
+    // Reschedule failed (class full, etc.)
+    booking.reconciliationProcessed = true;
+    booking.reconciliationTimestamp = new Date().toISOString();
+    await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
+
+    // Send failed notification
+    await sendLateCancelFailedNotification(booking);
+
+    return {
+      eventId,
+      action: 'late_cancel_unresolved',
+      details: result.error || 'Could not auto-reschedule',
+    };
+  } catch (e) {
+    console.error(`[reconciliation] Late cancel reschedule error for ${eventId}:`, e);
+    booking.reconciliationProcessed = true;
+    booking.reconciliationTimestamp = new Date().toISOString();
+    await redis.setex(`booking_details:${eventId}`, BOOKING_TTL_SECONDS, JSON.stringify(booking));
+
+    return {
+      eventId,
+      action: 'error',
+      details: e instanceof Error ? e.message : 'Unknown error',
+    };
+  }
+}
+
+async function sendLateCancelFailedNotification(booking: BookingDetails): Promise<void> {
+  const classDate = formatDateForDisplay(booking.classDate);
+
+  // 1. Email
+  try {
+    const { sendNoShowFailedEmail } = await import('./lib/email.js');
+    await sendNoShowFailedEmail({
+      to: booking.email,
+      firstName: booking.firstName,
+      className: booking.className,
+      classDate,
+      classTime: booking.classTime,
+    });
+  } catch (e) {
+    console.warn(`[reconciliation] Late cancel failed email error:`, e);
+  }
+
+  // 2. WhatsApp
+  try {
+    const { sendTextMessage } = await import('./lib/whatsapp.js');
+    await sendTextMessage(
+      booking.phone,
+      `Hola ${booking.firstName} 👋\n\nVemos que cancelaste tu clase de ${booking.className} con poco tiempo de antelación.\n\nHemos intentado reprogramarla, pero no hay disponibilidad la semana que viene.\n\nPuedes reservar otra clase de prueba gratuita aquí:\n🗓️ https://www.farrayscenter.com/es/horarios-precios\n\n¡Te esperamos! 💃`
+    );
+  } catch {
+    // WhatsApp window may have expired
+  }
+}
+
+// ============================================================================
 // HANDLER
 // ============================================================================
 
@@ -474,20 +646,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   try {
     console.log(`[cron-reconciliation] Starting for ${todayStr} at ${currentHour}:00`);
 
-    // Get all bookings for today
-    const eventIds = await redis.smembers(`reminders:${todayStr}`);
-
-    if (eventIds.length === 0) {
-      console.log('[cron-reconciliation] No bookings found for today');
-      res.status(200).json({ status: 'completed', processed: 0, results: [] });
-      return;
-    }
-
     const momenceClient = new MomenceApiClient(null);
     const autoRescheduleCount = { value: 0 };
     const results: ReconciliationResult[] = [];
 
-    // Process each booking
+    // === PHASE 1: Process today's bookings (attendance + no-show reschedule) ===
+    const eventIds = await redis.smembers(`reminders:${todayStr}`);
+
     for (const eventId of eventIds) {
       try {
         const raw = await redis.get(`booking_details:${eventId}`);
@@ -506,12 +671,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
     }
 
+    // === PHASE 2: Process late cancellations for auto-reschedule ===
+    const lateCancelEventIds = await redis.smembers(`late_cancellations:${todayStr}`);
+
+    for (const eventId of lateCancelEventIds) {
+      try {
+        const raw = await redis.get(`booking_details:${eventId}`);
+        if (!raw) {
+          // booking_details was deleted, remove from set
+          await redis.srem(`late_cancellations:${todayStr}`, eventId);
+          continue;
+        }
+
+        const booking: BookingDetails = JSON.parse(raw);
+
+        // Only process if class time has passed (same timing as no-shows)
+        if (!isClassFinished(booking.classDate, booking.classTime)) {
+          continue;
+        }
+
+        const result = await reconcileLateCancellation(redis, booking, autoRescheduleCount);
+        results.push(result);
+
+        // Remove from late_cancellations set once processed
+        if (result.action !== 'skipped' || result.details === 'Already processed') {
+          await redis.srem(`late_cancellations:${todayStr}`, eventId);
+        }
+      } catch (e) {
+        console.error(`[cron-reconciliation] Error processing late cancel ${eventId}:`, e);
+        results.push({
+          eventId,
+          action: 'error',
+          details: e instanceof Error ? e.message : 'Unknown',
+        });
+      }
+    }
+
     // Store reconciliation stats
     const stats = {
       total_bookings: String(eventIds.length),
       attended: String(results.filter(r => r.action === 'attended').length),
       no_shows: String(results.filter(r => r.action.startsWith('no_show')).length),
       auto_rescheduled: String(results.filter(r => r.action === 'no_show_rescheduled').length),
+      late_cancels_processed: String(lateCancelEventIds.length),
+      late_cancels_rescheduled: String(
+        results.filter(r => r.action === 'late_cancel_rescheduled').length
+      ),
+      late_cancels_already_rebooked: String(
+        results.filter(r => r.action === 'late_cancel_already_rebooked').length
+      ),
       skipped: String(results.filter(r => r.action === 'skipped').length),
       errors: String(results.filter(r => r.action === 'error').length),
     };

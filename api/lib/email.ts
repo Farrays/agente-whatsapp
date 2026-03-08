@@ -1888,7 +1888,7 @@ interface NoShowRescheduleEmailData {
   newDate: string;
   newTime: string;
   managementUrl: string;
-  reason: 'no_show' | 'manual' | 'class_cancelled';
+  reason: 'no_show' | 'manual' | 'class_cancelled' | 'cancelled_late';
 }
 
 /**
@@ -1908,7 +1908,9 @@ export async function sendNoShowRescheduleEmail(
   const introText =
     data.reason === 'class_cancelled'
       ? `Lamentablemente tu clase de <strong>${data.originalClassName}</strong> del ${data.originalDate} a las ${data.originalTime} ha sido cancelada.`
-      : `Sentimos que no hayas podido asistir a tu clase de <strong>${data.originalClassName}</strong> del ${data.originalDate} a las ${data.originalTime}.`;
+      : data.reason === 'cancelled_late'
+        ? `Vemos que cancelaste tu clase de <strong>${data.originalClassName}</strong> del ${data.originalDate} a las ${data.originalTime} con poco tiempo de antelación.`
+        : `Sentimos que no hayas podido asistir a tu clase de <strong>${data.originalClassName}</strong> del ${data.originalDate} a las ${data.originalTime}.`;
 
   const reasonText =
     data.reason === 'class_cancelled'

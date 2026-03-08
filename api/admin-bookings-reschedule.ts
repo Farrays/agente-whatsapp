@@ -53,7 +53,7 @@ export interface RescheduleRequest {
   mode: 'next_week' | 'specific_session';
   targetSessionId?: number;
   notifyStudent?: boolean;
-  reason: 'no_show' | 'manual' | 'class_cancelled';
+  reason: 'no_show' | 'manual' | 'class_cancelled' | 'cancelled_late';
 }
 
 export interface RescheduleResult {
@@ -414,7 +414,7 @@ export async function rescheduleBooking(
       await client.cancelBooking(booking.momenceBookingId, {
         refund: false,
         disableNotifications: true,
-        isLateCancellation: reason === 'no_show',
+        isLateCancellation: reason === 'no_show' || reason === 'cancelled_late',
       });
       console.log(`[reschedule] Cancelled Momence booking ${booking.momenceBookingId}`);
     } catch (e) {
@@ -575,7 +575,7 @@ export async function rescheduleBooking(
             },
             body: JSON.stringify({
               colorId: '11', // Red
-              description: `Estado: 🔴 No-show - Reprogramado\n\n➡️ Nueva reserva: ${newEventId}\n📅 ${nextSessionDate || 'próxima semana'}\n🕐 ${nextSessionTime || booking.classTime}`,
+              description: `Estado: 🔴 ${reason === 'cancelled_late' ? 'Cancelación tardía' : 'No-show'} - Reprogramado\n\n➡️ Nueva reserva: ${newEventId}\n📅 ${nextSessionDate || 'próxima semana'}\n🕐 ${nextSessionTime || booking.classTime}`,
             }),
           }
         );
@@ -694,7 +694,7 @@ export async function rescheduleBooking(
       classDate: nextSessionDate || newCalendarDateStr || '',
       classTime: nextSessionTime || booking.classTime,
       category: booking.category || '',
-      sourceUrl: `Reprogramación ${reason === 'no_show' ? '(no-show automática)' : '(manual vía WhatsApp)'}`,
+      sourceUrl: `Reprogramación ${reason === 'no_show' ? '(no-show automática)' : reason === 'cancelled_late' ? '(cancelación tardía automática)' : '(manual vía WhatsApp)'}`,
     });
     notificationResults.adminEmail = adminResult.success;
     console.log(`[reschedule] Admin email: ${adminResult.success ? '✅' : '❌'}`);
@@ -713,6 +713,7 @@ export async function rescheduleBooking(
         newDate: nextSessionDate || newCalendarDateStr || '',
         newTime: nextSessionTime || booking.classTime,
         managementUrl,
+        reason: reason === 'cancelled_late' ? 'cancelled_late' : 'no_show',
       });
       notificationResults.whatsapp = waResult.success;
     } catch (e) {
@@ -724,7 +725,10 @@ export async function rescheduleBooking(
   try {
     const { recordAuditEvent } = await import('./lib/audit.js');
     await recordAuditEvent(redis, {
-      action: reason === 'no_show' ? 'booking_auto_rescheduled' : 'booking_manual_rescheduled',
+      action:
+        reason === 'no_show' || reason === 'cancelled_late'
+          ? 'booking_auto_rescheduled'
+          : 'booking_manual_rescheduled',
       channel: 'momence_api',
       eventId: newEventId,
       email: booking.email,

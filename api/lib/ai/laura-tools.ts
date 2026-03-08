@@ -1515,6 +1515,16 @@ async function executeManageTrialBooking(
         JSON.stringify(booking)
       );
 
+      // Track late cancellations for auto-reschedule by cron
+      if (!isOnTime && booking.classDate && /^\d{4}-\d{2}-\d{2}$/.test(booking.classDate)) {
+        try {
+          await context.redis.sadd(`late_cancellations:${booking.classDate}`, eventId);
+          await context.redis.expire(`late_cancellations:${booking.classDate}`, 7 * 24 * 60 * 60);
+        } catch {
+          /* non-blocking */
+        }
+      }
+
       // 3. Clean ALL Redis keys (dedup + phone mappings + reminders)
       const email = booking.email.toLowerCase().trim();
       const bookingPhone = booking.phone?.replace(/[\s\-+()]/g, '') || '';

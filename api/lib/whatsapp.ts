@@ -665,6 +665,7 @@ export interface NoShowRescheduleWhatsAppData {
   newDate: string;
   newTime: string;
   managementUrl: string;
+  reason?: 'no_show' | 'cancelled_late';
 }
 
 /**
@@ -680,10 +681,15 @@ export interface NoShowRescheduleWhatsAppData {
 export async function sendNoShowRescheduleWhatsApp(
   data: NoShowRescheduleWhatsAppData
 ): Promise<WhatsAppResult> {
+  const introLine =
+    data.reason === 'cancelled_late'
+      ? `Vemos que cancelaste tu clase de ${data.className} con poco tiempo de antelación.`
+      : `Sentimos que no hayas podido venir a tu clase de ${data.className} hoy.`;
+
   const freeText = [
     `Hola ${data.firstName} 👋`,
     '',
-    `Sentimos que no hayas podido venir a tu clase de ${data.className} hoy.`,
+    introLine,
     '',
     `Entendemos que surgen imprevistos, por eso hemos reprogramado tu clase de forma excepcional para el *${data.newDate}* a las *${data.newTime}* 💃`,
     '',
