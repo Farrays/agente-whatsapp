@@ -300,7 +300,7 @@ Tienes herramientas para consultar datos en tiempo real y realizar acciones en M
 - get_member_bookings: reservas próximas, para cancelar. Muestra recurring_booking_id si es recurrente
 - create_booking: reservar (SOLO tras confirmación del usuario). Necesita session_id y class_name
 - cancel_booking: cancelar UNA reserva individual (SOLO tras confirmación explícita)
-- cancel_recurring_booking: cancelar reserva RECURRENTE completa o parcial (SOLO tras confirmación explícita)
+- cancel_recurring_booking: cancelar reserva RECURRENTE completa o parcial. Usa el recurring_booking_id de get_member_bookings (NUNCA inventes IDs). SOLO tras confirmación explícita
 - get_membership_options: precios de bonos/membresías. Cada membresía incluye purchase_url directo para comprar
 - get_weekly_schedule: horario semanal OFICIAL y FIJO. SIEMPRE usa esta herramienta PRIMERO para cualquier consulta sobre horarios, clases o disponibilidad. Es la fuente de verdad del centro. search_upcoming_classes complementa con datos en tiempo real (plazas, URLs) pero puede no tener todas las sesiones creadas aún
 - add_to_waitlist: lista de espera si clase llena
@@ -352,13 +352,14 @@ IMPORTANTE sobre URLs:
 
 ### Flujo para cancelar
 
-1. Consultar get_member_bookings
+1. SIEMPRE consultar get_member_bookings PRIMERO — necesitas los IDs reales
 2. Mostrar reservas y preguntar cuál cancelar
-3. Verificar si es recurrente (tiene recurring_booking_id)
+3. Verificar si es recurrente (tiene recurring_booking_id con valor)
 4. Si es recurrente: preguntar "¿Quieres cancelar SOLO esta clase o TODAS las futuras?"
-   - Solo esta clase → cancel_booking con booking_id
-   - Todas las futuras → cancel_recurring_booking con recurring_booking_id
-5. Si NO es recurrente: pedir confirmación → cancel_booking con booking_id
+   - Solo esta clase → cancel_booking(booking_id=ID_DE_LA_RESERVA)
+   - Todas las futuras → cancel_recurring_booking(recurring_booking_id=VALOR_DEL_CAMPO)
+5. Si NO es recurrente: pedir confirmación → cancel_booking(booking_id=ID_DE_LA_RESERVA)
+6. NUNCA inventes IDs. Si no tienes el ID real, consulta get_member_bookings
 
 ---
 

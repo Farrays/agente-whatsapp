@@ -389,13 +389,13 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'cancel_recurring_booking',
     description:
-      'Cancelar una reserva recurrente (clase semanal fija). Opcionalmente puede cancelar solo a partir de una sesión específica. IMPORTANTE: Confirma con el usuario antes de ejecutar.',
+      'Cancelar una reserva recurrente (clase semanal fija). USA el recurring_booking_id que devuelve get_member_bookings. NUNCA inventes IDs. IMPORTANTE: Confirma con el usuario antes de ejecutar.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        booking_id: {
+        recurring_booking_id: {
           type: 'number',
-          description: 'ID de la reserva recurrente a cancelar',
+          description: 'El recurring_booking_id de get_member_bookings (NO el booking_id normal)',
         },
         after_session_id: {
           type: 'number',
@@ -403,7 +403,7 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
             'Si se proporciona, cancela la recurrencia solo a partir de esta sesión (opcional)',
         },
       },
-      required: ['booking_id'],
+      required: ['recurring_booking_id'],
     },
   },
   // Tool 20: get_session_bookings
@@ -785,7 +785,7 @@ async function executeGetMemberBookings(context: ToolContext): Promise<string> {
     found: bookings.length,
     bookings,
     _instruction:
-      'Si recurring_booking_id tiene valor, la reserva es RECURRENTE (clase fija semanal). Para cancelar toda la recurrencia → cancel_recurring_booking con ese ID. Para cancelar solo UNA sesión → cancel_booking con booking_id. SIEMPRE pregunta al usuario qué quiere hacer.',
+      'Si recurring_booking_id tiene valor, la reserva es RECURRENTE (clase fija semanal). Para cancelar toda la recurrencia → cancel_recurring_booking(recurring_booking_id=ESE_VALOR). Para cancelar solo UNA sesión → cancel_booking(booking_id). NUNCA inventes IDs. SIEMPRE pregunta al usuario qué quiere hacer.',
   });
 }
 
@@ -1802,12 +1802,12 @@ async function executeCancelRecurringBooking(
     return JSON.stringify({ error: 'No se encontró tu perfil de miembro.' });
   }
 
-  const bookingId = input['booking_id'] as number;
+  const bookingId = input['recurring_booking_id'] as number;
   const afterSessionId = input['after_session_id'] as number | undefined;
 
   if (!bookingId) {
     return JSON.stringify({
-      error: 'Falta el ID de la reserva recurrente.',
+      error: 'Falta el recurring_booking_id. Usa get_member_bookings para obtenerlo.',
     });
   }
 
