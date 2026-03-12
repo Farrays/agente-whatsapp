@@ -644,76 +644,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    console.log(`[cron-reconciliation] Starting for ${todayStr} at ${currentHour}:00`);
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = getDateInTimezone(yesterdayDate, SPAIN_TIMEZONE);
+    console.log(
+      `[cron-reconciliation] Starting for ${yesterdayStr} + ${todayStr} at ${currentHour}:00`
+    );
 
     const momenceClient = new MomenceApiClient(null);
     const autoRescheduleCount = { value: 0 };
     const results: ReconciliationResult[] = [];
 
-    // === PHASE 1: Process today's bookings (attendance + no-show reschedule) ===
-    const eventIds = await redis.smembers(`reminders:${todayStr}`);
+    // Process today AND yesterday (catches evening classes that finished after 22:00)
+    const datesToProcess = [yesterdayStr, todayStr];
 
-    for (const eventId of eventIds) {
-      try {
-        const raw = await redis.get(`booking_details:${eventId}`);
-        if (!raw) continue;
+    // === PHASE 1: Process bookings (attendance + no-show reschedule) ===
+    let totalEventIds = 0;
+    for (const dateStr of datesToProcess) {
+      const eventIds = await redis.smembers(`reminders:${dateStr}`);
+      totalEventIds += eventIds.length;
 
-        const booking: BookingDetails = JSON.parse(raw);
-        const result = await reconcileBooking(redis, booking, momenceClient, autoRescheduleCount);
-        results.push(result);
-      } catch (e) {
-        console.error(`[cron-reconciliation] Error processing ${eventId}:`, e);
-        results.push({
-          eventId,
-          action: 'error',
-          details: e instanceof Error ? e.message : 'Unknown',
-        });
+      for (const eventId of eventIds) {
+        try {
+          const raw = await redis.get(`booking_details:${eventId}`);
+          if (!raw) continue;
+
+          const booking: BookingDetails = JSON.parse(raw);
+          const result = await reconcileBooking(redis, booking, momenceClient, autoRescheduleCount);
+          results.push(result);
+        } catch (e) {
+          console.error(`[cron-reconciliation] Error processing ${eventId}:`, e);
+          results.push({
+            eventId,
+            action: 'error',
+            details: e instanceof Error ? e.message : 'Unknown',
+          });
+        }
       }
     }
 
     // === PHASE 2: Process late cancellations for auto-reschedule ===
-    const lateCancelEventIds = await redis.smembers(`late_cancellations:${todayStr}`);
+    let lateCancelTotal = 0;
+    for (const dateStr of datesToProcess) {
+      const lateCancelEventIds = await redis.smembers(`late_cancellations:${dateStr}`);
+      lateCancelTotal += lateCancelEventIds.length;
 
-    for (const eventId of lateCancelEventIds) {
-      try {
-        const raw = await redis.get(`booking_details:${eventId}`);
-        if (!raw) {
-          // booking_details was deleted, remove from set
-          await redis.srem(`late_cancellations:${todayStr}`, eventId);
-          continue;
+      for (const eventId of lateCancelEventIds) {
+        try {
+          const raw = await redis.get(`booking_details:${eventId}`);
+          if (!raw) {
+            await redis.srem(`late_cancellations:${dateStr}`, eventId);
+            continue;
+          }
+
+          const booking: BookingDetails = JSON.parse(raw);
+
+          if (!isClassFinished(booking.classDate, booking.classTime)) {
+            continue;
+          }
+
+          const result = await reconcileLateCancellation(redis, booking, autoRescheduleCount);
+          results.push(result);
+
+          if (result.action !== 'skipped' || result.details === 'Already processed') {
+            await redis.srem(`late_cancellations:${dateStr}`, eventId);
+          }
+        } catch (e) {
+          console.error(`[cron-reconciliation] Error processing late cancel ${eventId}:`, e);
+          results.push({
+            eventId,
+            action: 'error',
+            details: e instanceof Error ? e.message : 'Unknown',
+          });
         }
-
-        const booking: BookingDetails = JSON.parse(raw);
-
-        // Only process if class time has passed (same timing as no-shows)
-        if (!isClassFinished(booking.classDate, booking.classTime)) {
-          continue;
-        }
-
-        const result = await reconcileLateCancellation(redis, booking, autoRescheduleCount);
-        results.push(result);
-
-        // Remove from late_cancellations set once processed
-        if (result.action !== 'skipped' || result.details === 'Already processed') {
-          await redis.srem(`late_cancellations:${todayStr}`, eventId);
-        }
-      } catch (e) {
-        console.error(`[cron-reconciliation] Error processing late cancel ${eventId}:`, e);
-        results.push({
-          eventId,
-          action: 'error',
-          details: e instanceof Error ? e.message : 'Unknown',
-        });
       }
     }
 
     // Store reconciliation stats
     const stats = {
-      total_bookings: String(eventIds.length),
+      total_bookings: String(totalEventIds),
       attended: String(results.filter(r => r.action === 'attended').length),
       no_shows: String(results.filter(r => r.action.startsWith('no_show')).length),
       auto_rescheduled: String(results.filter(r => r.action === 'no_show_rescheduled').length),
-      late_cancels_processed: String(lateCancelEventIds.length),
+      late_cancels_processed: String(lateCancelTotal),
       late_cancels_rescheduled: String(
         results.filter(r => r.action === 'late_cancel_rescheduled').length
       ),
