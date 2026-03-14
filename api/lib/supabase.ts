@@ -210,6 +210,7 @@ export interface Lead {
   consent_calls: boolean;
   consent_date: string | null;
   consent_renewed: string | null;
+  nurture_opt_out: boolean;
 
   // Atribución Meta Ads
   meta_fbclid: string | null;
@@ -290,13 +291,27 @@ export type NurtureTriggerType =
   | 'dormant'
   | 'manual';
 
+/** Acciones soportadas por el motor de nurturing */
+export type NurtureAction =
+  | 'send_template' // Enviar template aprobado de WhatsApp (funciona siempre)
+  | 'send_text' // Enviar texto libre (solo dentro de ventana 24h)
+  | 'send_welcome' // Enviar template lead_descubre_empezar
+  | 'update_status' // Cambiar status del lead en el pipeline
+  | 'add_signals' // Añadir señales al lead
+  | 'wait' // Esperar sin hacer nada (solo delay)
+  | 'skip'; // Paso deshabilitado (ej: ai_call sin infra)
+
 /** Paso de una secuencia de nurturing */
 export interface NurtureStep {
   step: number;
   delay_hours: number;
   channel: string;
-  action: string;
+  action: NurtureAction;
   template_name?: string;
+  template_params?: string[];
+  message_text?: string;
+  target_status?: LeadStatus;
+  signals?: string[];
   description: string;
 }
 
@@ -382,6 +397,7 @@ export interface LeadInsert {
   consent_calls?: boolean;
   consent_date?: string | null;
   consent_renewed?: string | null;
+  nurture_opt_out?: boolean;
   meta_fbclid?: string | null;
   meta_fbc?: string | null;
   meta_fbp?: string | null;

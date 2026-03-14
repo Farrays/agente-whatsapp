@@ -121,6 +121,10 @@
     {
       "path": "/api/cron-reconciliation",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron-nurturing",
+      "schedule": "*/30 * * * *"
     }
   ],
   "redirects": [

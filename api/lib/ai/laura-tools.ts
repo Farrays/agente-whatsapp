@@ -825,10 +825,15 @@ async function executeCreateBooking(
       context.boughtMembershipIds
     );
 
-    // CRM: Track conversion signals (fire-and-forget)
+    // CRM: Track conversion signals + advance status (fire-and-forget)
     getByPhone(context.phone)
-      .then(lead => lead && addSignals(lead.id, ['started_booking', 'completed_booking']))
-      .catch(err => console.error('[create_booking] Lead scoring failed:', err));
+      .then(async lead => {
+        if (!lead) return;
+        await addSignals(lead.id, ['started_booking', 'completed_booking']);
+        const { progressStatus } = await import('../lead-repository.js');
+        await progressStatus(lead.id, 'booking_created');
+      })
+      .catch(err => console.error('[create_booking] Lead CRM update failed:', err));
 
     return JSON.stringify({
       success: true,

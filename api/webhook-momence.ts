@@ -316,6 +316,17 @@ async function handleSubscriptionCreated(
   await labelsManager.markActiveMember(phone);
   await labelsManager.markConverted(phone);
 
+  // CRM: Cancel nurture sequences + advance status (fire-and-forget)
+  import('./lib/lead-repository.js')
+    .then(async ({ getByPhone, progressStatus }) => {
+      const lead = await getByPhone(phone);
+      if (!lead) return;
+      await progressStatus(lead.id, 'payment_made');
+      const { cancelExecutionsForLead } = await import('./lib/nurture-engine.js');
+      await cancelExecutionsForLead(lead.id, 'converted');
+    })
+    .catch(err => console.error('[webhook-momence] CRM nurture cancel failed:', err));
+
   // Check if VIP subscription
   const isVip =
     subscriptionName?.toLowerCase().includes('ilimitado') ||

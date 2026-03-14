@@ -78,6 +78,9 @@ export const FEATURES = {
 
   /** Kill switch: Deshabilita Analytics tracking */
   ANALYTICS_ENABLED: 'system.analytics_enabled',
+
+  /** Kill switch: Deshabilita Nurture Sequences automáticas */
+  NURTURE_ENABLED: 'system.nurture_enabled',
 } as const;
 
 export type FeatureFlag = (typeof FEATURES)[keyof typeof FEATURES];
@@ -107,6 +110,7 @@ export const DEFAULT_FLAGS: Record<FeatureFlag, boolean> = {
   [FEATURES.FICHAJE_ENABLED]: true,
   [FEATURES.AGENT_LAURA_ENABLED]: true,
   [FEATURES.ANALYTICS_ENABLED]: true,
+  [FEATURES.NURTURE_ENABLED]: true,
 };
 
 // ============================================================================

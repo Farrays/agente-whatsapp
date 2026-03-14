@@ -878,6 +878,29 @@ async function processMessage(
             console.error(`[webhook-whatsapp] Lead scoring failed:`, err);
           });
         }
+
+        // ================================================================
+        // CRM: Progresión automática de status (fire-and-forget)
+        // ================================================================
+        import('./lib/lead-repository.js')
+          .then(({ progressStatus }) => {
+            progressStatus(lead.id, 'first_reply');
+          })
+          .catch(() => {});
+
+        // ================================================================
+        // CRM: Enrollment en nurture sequences (fire-and-forget)
+        // Solo para leads recién creados (created_at < 5 min ago)
+        // ================================================================
+        if (lead.created_at && Date.now() - new Date(lead.created_at).getTime() < 5 * 60 * 1000) {
+          import('./lib/nurture-engine.js')
+            .then(({ tryEnrollNewLead }) => {
+              tryEnrollNewLead(lead);
+            })
+            .catch(err => {
+              console.error(`[webhook-whatsapp] Nurture enrollment failed:`, err);
+            });
+        }
       }
     } catch (agentError) {
       console.error(`[webhook-whatsapp] LAURA error:`, agentError);

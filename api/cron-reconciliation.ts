@@ -303,6 +303,19 @@ async function reconcileBooking(
       /* non-blocking */
     }
 
+    // CRM: Status progression + nurture enrollment (fire-and-forget)
+    try {
+      const { tryEnrollByTrigger } = await import('./lib/nurture-engine.js');
+      const { progressStatus, getByPhone } = await import('./lib/lead-repository.js');
+      const lead = await getByPhone(booking.phone);
+      if (lead) {
+        await progressStatus(lead.id, 'booking_attended');
+        await tryEnrollByTrigger(booking.phone, 'post_trial');
+      }
+    } catch {
+      /* non-blocking */
+    }
+
     return { eventId, action: 'attended' };
   }
 
@@ -332,6 +345,14 @@ async function reconcileBooking(
       classDate: booking.classDate,
       success: true,
     });
+  } catch {
+    /* non-blocking */
+  }
+
+  // CRM: Enroll in no_show nurture sequence (fire-and-forget)
+  try {
+    const { tryEnrollByTrigger } = await import('./lib/nurture-engine.js');
+    await tryEnrollByTrigger(booking.phone, 'no_show');
   } catch {
     /* non-blocking */
   }

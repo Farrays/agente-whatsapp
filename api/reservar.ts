@@ -2301,10 +2301,11 @@ export default async function handler(
     }
 
     // ================================================================
-    // CRM: Upsert lead + conversion signals (fire-and-forget)
+    // CRM: Upsert lead + conversion signals + status progression
     // ================================================================
     try {
-      const { upsertLead, addSignals } = await import('./lib/lead-repository.js');
+      const { upsertLead, addSignals, progressStatus, updateConsent } =
+        await import('./lib/lead-repository.js');
       const lead = await upsertLead({
         phone: sanitize(phone),
         name: `${sanitize(firstName)} ${sanitize(lastName)}`.trim(),
@@ -2312,6 +2313,7 @@ export default async function handler(
         channel: 'web',
         source: 'trial_booking',
         dance_styles: estilo ? [sanitize(estilo)] : undefined,
+        consent_marketing: !!acceptsMarketing || !!acceptsTerms,
       });
       addSignals(lead.id, [
         'started_booking',
@@ -2319,6 +2321,16 @@ export default async function handler(
         'shared_email',
         'shared_name',
       ]).catch(err => console.error('[reservar] Lead scoring failed:', err));
+      // Advance status to 'booked'
+      progressStatus(lead.id, 'booking_created').catch(err =>
+        console.error('[reservar] Status progression failed:', err)
+      );
+      // Save marketing consent if given
+      if (acceptsMarketing || acceptsTerms) {
+        updateConsent(lead.id, { marketing: true }).catch(err =>
+          console.error('[reservar] Consent update failed:', err)
+        );
+      }
     } catch (crmErr) {
       console.error('[reservar] CRM upsert failed (non-blocking):', crmErr);
     }

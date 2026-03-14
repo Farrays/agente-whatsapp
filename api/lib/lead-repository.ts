@@ -593,3 +593,64 @@ export async function getLeadsPendingFollowup(limit = 20): Promise<Lead[]> {
   if (error) throw new Error(`Error fetching pending followups: ${error.message}`);
   return (data as Lead[] | null) ?? [];
 }
+
+// ============================================================================
+// AUTOMATIC STATUS PROGRESSION
+// ============================================================================
+
+type LeadEvent =
+  | 'first_reply' // Lead respondió por primera vez
+  | 'score_qualified' // Score alcanzó warm+ (≥40)
+  | 'booking_created' // Reservó clase de prueba
+  | 'booking_attended' // Asistió a la clase
+  | 'payment_made'; // Pagó / se hizo miembro
+
+/**
+ * Progresa el status del lead automáticamente basado en eventos.
+ * Solo avanza "hacia adelante" en el pipeline — nunca retrocede.
+ *
+ * Transiciones válidas:
+ * - first_reply:      new → engaged
+ * - score_qualified:  new/engaged → qualified
+ * - booking_created:  new/engaged/qualified → booked
+ * - booking_attended: booked → attended
+ * - payment_made:     cualquier estado activo → converted
+ */
+export async function progressStatus(leadId: string, event: LeadEvent): Promise<LeadStatus | null> {
+  const lead = await getById(leadId);
+  if (!lead) return null;
+
+  // Mapa de transiciones: event → { from: estados válidos, to: nuevo estado }
+  const transitions: Record<LeadEvent, { from: LeadStatus[]; to: LeadStatus }> = {
+    first_reply: {
+      from: ['new'],
+      to: 'engaged',
+    },
+    score_qualified: {
+      from: ['new', 'engaged'],
+      to: 'qualified',
+    },
+    booking_created: {
+      from: ['new', 'engaged', 'qualified'],
+      to: 'booked',
+    },
+    booking_attended: {
+      from: ['booked'],
+      to: 'attended',
+    },
+    payment_made: {
+      from: ['new', 'engaged', 'qualified', 'booked', 'attended'],
+      to: 'converted',
+    },
+  };
+
+  const transition = transitions[event];
+  if (!transition) return null;
+
+  // Solo transicionar si el estado actual está en la lista de "from"
+  if (!transition.from.includes(lead.status)) return null;
+
+  await updateStatus(leadId, transition.to);
+  console.log(`[lead-repository] Status progression: ${lead.status} → ${transition.to} (${event})`);
+  return transition.to;
+}
