@@ -720,6 +720,13 @@ export default async function handler(
       console.warn('[Cancel] Redis key deleted:', bookingDetailsKey);
     }
 
+    // Eliminar índice trial_email (para Laura lookup)
+    if (bookingData.email) {
+      const cancelEmail = bookingData.email.toLowerCase().trim();
+      await redis.del(`trial_email:${cancelEmail}`);
+      console.log(`[Cancel] Deleted trial_email:${redactEmail(cancelEmail)}`);
+    }
+
     // También eliminar del set de reminders
     if (bookingData.classDate) {
       const dateMatch = bookingData.classDate.match(/\d{4}-\d{2}-\d{2}/);

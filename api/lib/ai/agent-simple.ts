@@ -19,7 +19,12 @@ import { getFullSystemPrompt } from './laura-system-prompt.js';
 import { checkAndEscalate } from './escalation-service.js';
 import { activateTakeover, addNotification } from './human-takeover.js';
 import { getMemberLookup } from './member-lookup.js';
-import { LAURA_TOOLS_MEMBER, LAURA_TOOLS_NEW_USER, executeTool } from './laura-tools.js';
+import {
+  LAURA_TOOLS_MEMBER,
+  LAURA_TOOLS_NEW_USER,
+  executeTool,
+  findTrialBooking,
+} from './laura-tools.js';
 import { markdownToWhatsApp, splitIntoBubbles } from './whatsapp-formatter.js';
 import { sendTypingIndicator, sendTextMessage as sendWhatsAppText } from '../whatsapp.js';
 import { validatePrices } from './response-validator.js';
@@ -364,6 +369,7 @@ export async function processSimpleMessage(
     | {
         isExistingMember: boolean;
         firstName?: string;
+        email?: string;
         hasActiveMembership?: boolean;
         creditsAvailable?: number;
         membershipName?: string;
@@ -388,6 +394,7 @@ export async function processSimpleMessage(
         memberContext = {
           isExistingMember: true,
           firstName: lookup.member.firstName,
+          email: lookup.member.email,
           hasActiveMembership: membershipInfo.hasActiveMembership,
           creditsAvailable: membershipInfo.creditsAvailable,
           membershipName: membershipInfo.membershipName,
@@ -407,6 +414,7 @@ export async function processSimpleMessage(
   }
 
   // 2b. Buscar SIEMPRE si tiene reserva de clase de prueba
+  // 3-tier lookup: phone (O(1)) → email index (O(1)) → scan all_trial_booking_ids (O(n))
   // (reservar.ts crea miembros en Momence para trial users, así que memberContext puede existir)
   let trialContext:
     | {
@@ -421,45 +429,27 @@ export async function processSimpleMessage(
     | undefined;
 
   try {
-    const normalizedPhone = phone.replace(/[\s\-+()]/g, '');
-    // Try multiple phone variants (WhatsApp sends 34xxx, widget may store xxx or vice versa)
-    const trialPhoneVariants = [normalizedPhone];
-    if (normalizedPhone.startsWith('34') && normalizedPhone.length > 9) {
-      trialPhoneVariants.push(normalizedPhone.slice(2)); // Without country code
-    } else if (/^[6789]\d{8}$/.test(normalizedPhone)) {
-      trialPhoneVariants.push('34' + normalizedPhone); // With Spanish country code
-    }
+    const result = await findTrialBooking(redis, {
+      phone,
+      email: memberContext?.email,
+      name: memberContext?.firstName,
+    });
 
-    let eventId: string | null = null;
-    for (const variant of trialPhoneVariants) {
-      const found = (await redis.get(`phone:${variant}`)) as string | null;
-      if (found) {
-        eventId = found;
-        break;
-      }
-    }
-
-    if (eventId) {
-      const booking = (await redis.get(`booking_details:${eventId}`)) as Record<
-        string,
-        unknown
-      > | null;
-
-      if (booking && booking['status'] !== 'cancelled') {
-        trialContext = {
-          hasTrialBooking: true,
-          className: booking['className'] as string,
-          classDate: booking['classDate'] as string,
-          classTime: booking['classTime'] as string,
-          status: booking['status'] as string,
-          canCancel: booking['status'] !== 'cancelled',
-          canReschedule:
-            ((booking['rescheduleCount'] as number) || 0) < 1 && !booking['rescheduledFrom'],
-        };
-        console.log(
-          `[agent-simple] 🎫 Trial booking found: ${booking['className']} on ${booking['classDate']}`
-        );
-      }
+    if (result) {
+      const { booking, matchedVia } = result;
+      trialContext = {
+        hasTrialBooking: true,
+        className: booking['className'] as string,
+        classDate: booking['classDate'] as string,
+        classTime: booking['classTime'] as string,
+        status: booking['status'] as string,
+        canCancel: booking['status'] !== 'cancelled',
+        canReschedule:
+          ((booking['rescheduleCount'] as number) || 0) < 1 && !booking['rescheduledFrom'],
+      };
+      console.log(
+        `[agent-simple] 🎫 Trial booking found (via ${matchedVia}): ${booking['className']} on ${booking['classDate']}`
+      );
     }
   } catch (trialError) {
     console.error('[agent-simple] Trial lookup error (non-blocking):', trialError);

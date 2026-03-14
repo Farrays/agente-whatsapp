@@ -2205,6 +2205,14 @@ export default async function handler(
           );
         }
 
+        // Índice por email (para Laura: fallback cuando phone no coincide)
+        if (normalizedEmail) {
+          await redis.setex(`trial_email:${normalizedEmail}`, BOOKING_TTL_SECONDS, finalEventId);
+          console.warn(
+            `[reservar] Added trial_email index: trial_email:${redactEmail(normalizedEmail)}`
+          );
+        }
+
         // Índice por fecha (para cron-reminders)
         if (calendarDateStr) {
           await redis.sadd(`reminders:${calendarDateStr}`, finalEventId);

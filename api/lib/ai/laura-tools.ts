@@ -294,7 +294,7 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
   {
     name: 'manage_trial_booking',
     description:
-      'Gestionar reserva de clase de prueba gratuita. Puede consultar estado, cancelar o reprogramar para la semana siguiente. Busca la reserva por el teléfono del usuario. Usar cuando un usuario con reserva de prueba quiera consultar, cancelar o cambiar su clase.',
+      'Gestionar reserva de clase de prueba gratuita. Puede consultar estado, cancelar o reprogramar. Busca primero por teléfono, luego por email, luego por nombre. Si el teléfono no encuentra la reserva, pasa email o nombre del usuario como fallback.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -303,6 +303,16 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
           enum: ['check_status', 'cancel', 'reschedule_next_week'],
           description:
             'Acción: check_status = ver reserva, cancel = cancelar, reschedule_next_week = reprogramar para la semana siguiente',
+        },
+        email: {
+          type: 'string',
+          description:
+            'Email del usuario (fallback si el teléfono no encuentra la reserva). Pregunta al usuario si no lo tienes.',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nombre completo del usuario (segundo fallback). Formato: "Nombre Apellido".',
         },
         reason: {
           type: 'string',
@@ -424,6 +434,151 @@ export const LAURA_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+// ============================================================================
+// TRIAL BOOKING LOOKUP (shared: agent-simple.ts + executeManageTrialBooking)
+// ============================================================================
+
+export interface TrialBookingLookupResult {
+  eventId: string;
+  booking: Record<string, unknown>;
+  matchedVia: 'phone' | 'email_index' | 'scan_email' | 'scan_name' | 'scan_phone';
+}
+
+/**
+ * Enterprise trial booking lookup with 3-tier fallback:
+ * 1. phone:{variant} → eventId (O(1), fastest)
+ * 2. trial_email:{email} → eventId (O(1), new index)
+ * 3. Scan all_trial_booking_ids → batch match by email/name/phone (O(n), last resort)
+ *
+ * Returns null if no active (non-cancelled) booking found.
+ */
+export async function findTrialBooking(
+  redis: Redis,
+  opts: {
+    phone?: string;
+    email?: string;
+    name?: string;
+  }
+): Promise<TrialBookingLookupResult | null> {
+  // --- TIER 1: Phone lookup (O(1)) ---
+  if (opts.phone) {
+    const rawPhone = opts.phone.replace(/[\s\-+()]/g, '');
+    const phoneVariants = [rawPhone];
+    if (rawPhone.startsWith('34') && rawPhone.length > 9) {
+      phoneVariants.push(rawPhone.slice(2));
+    } else if (/^[6789]\d{8}$/.test(rawPhone)) {
+      phoneVariants.push('34' + rawPhone);
+    }
+
+    for (const variant of phoneVariants) {
+      const eventId = (await redis.get(`phone:${variant}`)) as string | null;
+      if (eventId) {
+        const raw = await redis.get(`booking_details:${eventId}`);
+        if (raw) {
+          const booking =
+            typeof raw === 'string'
+              ? (JSON.parse(raw) as Record<string, unknown>)
+              : (raw as Record<string, unknown>);
+          if (booking['status'] !== 'cancelled') {
+            return { eventId, booking, matchedVia: 'phone' };
+          }
+        }
+      }
+    }
+  }
+
+  // --- TIER 2: Email index lookup (O(1)) ---
+  if (opts.email) {
+    const normalizedEmail = opts.email.toLowerCase().trim();
+    const eventId = (await redis.get(`trial_email:${normalizedEmail}`)) as string | null;
+    if (eventId) {
+      const raw = await redis.get(`booking_details:${eventId}`);
+      if (raw) {
+        const booking =
+          typeof raw === 'string'
+            ? (JSON.parse(raw) as Record<string, unknown>)
+            : (raw as Record<string, unknown>);
+        if (booking['status'] !== 'cancelled') {
+          return { eventId, booking, matchedVia: 'email_index' };
+        }
+      }
+    }
+  }
+
+  // --- TIER 3: Scan all_trial_booking_ids (O(n), last resort) ---
+  // Only if we have something to match against
+  if (!opts.email && !opts.name && !opts.phone) return null;
+
+  try {
+    const allIds = (await redis.smembers('all_trial_booking_ids')) as string[];
+    if (!allIds || allIds.length === 0) return null;
+
+    // Batch fetch in chunks of 100 (avoid pipeline explosion)
+    const CHUNK_SIZE = 100;
+    const normalizedEmail = opts.email?.toLowerCase().trim();
+    const normalizedName = opts.name?.toLowerCase().trim();
+    const rawPhone = opts.phone?.replace(/[\s\-+()]/g, '') || '';
+
+    for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+      const chunk = allIds.slice(i, i + CHUNK_SIZE);
+      const pipeline = redis.pipeline();
+      for (const id of chunk) {
+        pipeline.get(`booking_details:${id}`);
+      }
+      const results = await pipeline.exec();
+
+      for (let j = 0; j < chunk.length; j++) {
+        const raw = results[j];
+        const bookingId = chunk[j];
+        if (!raw || !bookingId) continue;
+
+        const booking =
+          typeof raw === 'string'
+            ? (JSON.parse(raw) as Record<string, unknown>)
+            : (raw as Record<string, unknown>);
+
+        if (booking['status'] === 'cancelled') continue;
+
+        // Match by email
+        if (
+          normalizedEmail &&
+          typeof booking['email'] === 'string' &&
+          booking['email'].toLowerCase().trim() === normalizedEmail
+        ) {
+          return { eventId: bookingId, booking, matchedVia: 'scan_email' };
+        }
+
+        // Match by name (firstName + lastName)
+        if (normalizedName) {
+          const bookingName =
+            `${(booking['firstName'] as string) || ''} ${(booking['lastName'] as string) || ''}`
+              .toLowerCase()
+              .trim();
+          if (bookingName && bookingName === normalizedName) {
+            return { eventId: bookingId, booking, matchedVia: 'scan_name' };
+          }
+        }
+
+        // Match by phone (field inside booking_details, different format than Redis key)
+        if (rawPhone && typeof booking['phone'] === 'string') {
+          const bookingPhone = booking['phone'].replace(/[\s\-+()]/g, '');
+          if (
+            bookingPhone === rawPhone ||
+            bookingPhone === '34' + rawPhone ||
+            '34' + bookingPhone === rawPhone
+          ) {
+            return { eventId: bookingId, booking, matchedVia: 'scan_phone' };
+          }
+        }
+      }
+    }
+  } catch (scanError) {
+    console.error('[findTrialBooking] Scan fallback failed (non-blocking):', scanError);
+  }
+
+  return null;
+}
 
 // ============================================================================
 // TOOL SETS (member vs new user)
@@ -1292,7 +1447,7 @@ async function executeUpdateMemberEmail(
 }
 
 // ============================================================================
-// MANAGE TRIAL BOOKING (works without memberId - uses phone to find booking)
+// MANAGE TRIAL BOOKING (works without memberId - 3-tier lookup)
 // ============================================================================
 
 async function executeManageTrialBooking(
@@ -1307,46 +1462,38 @@ async function executeManageTrialBooking(
     });
   }
 
-  // Find booking by phone in Redis — try multiple format variants
-  const rawPhone = context.phone.replace(/[\s\-+()]/g, '');
-  // Build phone variants: with country code, without, as-is
-  const phoneVariants = [rawPhone];
-  if (rawPhone.startsWith('34') && rawPhone.length > 9) {
-    phoneVariants.push(rawPhone.slice(2)); // Without country code: 622247085
-  } else if (/^[6789]\d{8}$/.test(rawPhone)) {
-    phoneVariants.push('34' + rawPhone); // With Spanish country code: 34622247085
-  }
+  // 3-tier lookup: phone → email index → scan all_trial_booking_ids
+  const inputEmail = input['email'] as string | undefined;
+  const inputName = input['name'] as string | undefined;
 
-  let eventId: string | null = null;
-  let matchedPhone = rawPhone;
-  for (const variant of phoneVariants) {
-    const found = (await context.redis.get(`phone:${variant}`)) as string | null;
-    if (found) {
-      eventId = found;
-      matchedPhone = variant;
-      break;
-    }
-  }
+  const result = await findTrialBooking(context.redis, {
+    phone: context.phone,
+    email: inputEmail,
+    name: inputName,
+  });
 
-  if (!eventId) {
+  if (!result) {
     const lang = context.lang || 'es';
     return JSON.stringify({
       found: false,
       message:
-        'No se encontró ninguna reserva de clase de prueba asociada a este número. Si reservaste con otro teléfono, puedes cancelar desde tu email de confirmación o contactarnos en recepción.',
+        'No se encontró ninguna reserva de clase de prueba asociada a este número.' +
+        (inputEmail
+          ? ' Tampoco se encontró con ese email.'
+          : ' Si reservaste con otro teléfono, dime tu email o nombre completo para buscar.'),
+      hint: !inputEmail ? 'Pide el email al usuario para buscar con más precisión' : undefined,
       scheduleUrl: `https://www.farrayscenter.com/${lang}/horarios-precios`,
     });
   }
 
-  const raw = await context.redis.get(`booking_details:${eventId}`);
-  if (!raw) {
-    return JSON.stringify({
-      found: false,
-      message: 'No se encontraron los detalles de tu reserva.',
-    });
-  }
+  const { eventId, booking: rawBooking, matchedVia } = result;
+  console.log(`[manage_trial_booking] Found booking via ${matchedVia}: eventId=${eventId}`);
 
-  const booking = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw)) as {
+  // matchedPhone for cleanup later (cancel flow)
+  const rawPhone = context.phone.replace(/[\s\-+()]/g, '');
+  const matchedPhone = matchedVia === 'phone' ? rawPhone : '';
+
+  const booking = rawBooking as {
     eventId: string;
     firstName: string;
     lastName: string;
@@ -1556,8 +1703,9 @@ async function executeManageTrialBooking(
       const email = booking.email.toLowerCase().trim();
       const bookingPhone = booking.phone?.replace(/[\s\-+()]/g, '') || '';
 
-      // Delete dedup by email
+      // Delete dedup by email + trial_email index
       await context.redis.del(`booking:${email}`);
+      await context.redis.del(`trial_email:${email}`);
 
       // Delete phone→eventId mapping (both stored format and lookup format)
       const phonesToClear = new Set<string>();
