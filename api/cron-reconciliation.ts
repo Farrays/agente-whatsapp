@@ -299,8 +299,8 @@ async function reconcileBooking(
         classDate: booking.classDate,
         success: true,
       });
-    } catch {
-      /* non-blocking */
+    } catch (err) {
+      console.error('[reconciliation] Audit event error:', err);
     }
 
     // CRM: Status progression + nurture enrollment (fire-and-forget)
@@ -312,8 +312,8 @@ async function reconcileBooking(
         await progressStatus(lead.id, 'booking_attended');
         await tryEnrollByTrigger(booking.phone, 'post_trial');
       }
-    } catch {
-      /* non-blocking */
+    } catch (err) {
+      console.error('[reconciliation] CRM attended update error:', err);
     }
 
     return { eventId, action: 'attended' };
@@ -353,8 +353,8 @@ async function reconcileBooking(
   try {
     const { tryEnrollByTrigger } = await import('./lib/nurture-engine.js');
     await tryEnrollByTrigger(booking.phone, 'no_show');
-  } catch {
-    /* non-blocking */
+  } catch (err) {
+    console.error('[reconciliation] CRM no_show enroll error:', err);
   }
 
   // Auto-reschedule if within limit

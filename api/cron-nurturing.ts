@@ -142,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
             // avanzar igualmente al siguiente paso
             const nonFatalErrors = [
               'Conversation active',
-              'No marketing consent',
+              'Lead opted out',
               'Lead converted',
               'Lead lost',
             ];

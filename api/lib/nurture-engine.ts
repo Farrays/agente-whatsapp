@@ -296,9 +296,9 @@ export async function enrollLead(
 function interpolateText(template: string, lead: Lead): string {
   const firstName = lead.name?.split(' ')[0] || 'amigo/a';
   return template
-    .replace(/\{\{firstName\}\}/g, firstName)
-    .replace(/\{\{name\}\}/g, lead.name || 'amigo/a')
-    .replace(/\{\{phone\}\}/g, lead.phone);
+    .replace(/\{\{firstName\}\}/g, () => firstName)
+    .replace(/\{\{name\}\}/g, () => lead.name || 'amigo/a')
+    .replace(/\{\{phone\}\}/g, () => lead.phone);
 }
 
 /**

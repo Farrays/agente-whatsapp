@@ -886,7 +886,7 @@ async function processMessage(
           .then(({ progressStatus }) => {
             progressStatus(lead.id, 'first_reply');
           })
-          .catch(() => {});
+          .catch(err => console.error('[webhook-whatsapp] progressStatus error:', err));
 
         // ================================================================
         // CRM: Enrollment en nurture sequences (fire-and-forget)
@@ -1053,6 +1053,7 @@ async function handleAttendanceConfirmation(
       const normalizedEmail = booking.email.toLowerCase();
       await redis.del(`booking:${normalizedEmail}`);
       await redis.del(`trial_email:${normalizedEmail}`);
+      await redis.srem('all_trial_booking_ids', eventId);
       console.log(`[webhook-whatsapp] Deduplication removed for ${redactEmail(normalizedEmail)}`);
 
       // Eliminar del índice de teléfono
@@ -1111,6 +1112,7 @@ async function handleAttendanceConfirmation(
       const lateEmail = booking.email.toLowerCase();
       await redis.del(`booking:${lateEmail}`);
       await redis.del(`trial_email:${lateEmail}`);
+      await redis.srem('all_trial_booking_ids', eventId);
       console.log(
         `[webhook-whatsapp] Late cancellation (< 1h) - dedup CLEARED (super admin): ${booking.firstName}`
       );
